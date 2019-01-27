@@ -6,10 +6,6 @@ import tapir.internal.ProductToParams
 import tapir.typelevel.{FnComponents, ParamConcat, ParamsAsArgs}
 
 sealed trait EndpointInput[I] {
-  def and[J, IJ](other: EndpointInput[J])(implicit ts: ParamConcat.Aux[I, J, IJ]): EndpointInput[IJ]
-  def /[J, IJ](other: EndpointInput[J])(implicit ts: ParamConcat.Aux[I, J, IJ]): EndpointInput[IJ] = and(other)
-  def &[J, IJ](other: EndpointInput[J])(implicit ts: ParamConcat.Aux[I, J, IJ]): EndpointInput[IJ] = and(other)
-
   def show: String
 
   def map[II](f: I => II)(g: II => I)(implicit paramsAsArgs: ParamsAsArgs[I]): EndpointInput[II] =
@@ -46,30 +42,43 @@ object EndpointInput {
       }
   }
 
-  case class PathSegment(s: String) extends Single[Unit] {
+  sealed trait SinglePathable[I] extends Single[I] {
+    def /[J, IJ](other: SinglePathable[J])(implicit ts: ParamConcat.Aux[I, J, IJ]): MultiplePathable[IJ] = {
+      MultiplePathable(Vector(this, other))
+    }
+    def ?[J, IJ](other: SingleQueryable[J])(implicit ts: ParamConcat.Aux[I, J, IJ]): MultipleQueryable[IJ] =
+      MultipleQueryable(Vector(this), Vector(other))
+  }
+
+  case class PathSegment(s: String) extends SinglePathable[Unit] {
     def show = s"/$s"
   }
 
-  case class PathCapture[T](codec: PlainCodec[T], name: Option[String], info: EndpointIO.Info[T]) extends Single[T] {
+  case class PathCapture[T](codec: PlainCodec[T], name: Option[String], info: EndpointIO.Info[T]) extends SinglePathable[T] {
     def name(n: String): PathCapture[T] = copy(name = Some(n))
     def description(d: String): PathCapture[T] = copy(info = info.description(d))
     def example(t: T): PathCapture[T] = copy(info = info.example(t))
     def show = s"/[${name.getOrElse("")}]"
   }
 
-  case class PathsCapture(info: EndpointIO.Info[Seq[String]]) extends Single[Seq[String]] {
+  case class PathsCapture(info: EndpointIO.Info[Seq[String]]) extends SinglePathable[Seq[String]] {
     def description(d: String): PathsCapture = copy(info = info.description(d))
     def example(t: Seq[String]): PathsCapture = copy(info = info.example(t))
     def show = s"/[multiple paths]"
   }
 
-  case class Query[T](name: String, codec: PlainCodecFromMany[T], info: EndpointIO.Info[T]) extends Single[T] {
+  sealed trait SingleQueryable[T] extends Single[T] {
+    def &[J, IJ](other: SingleQueryable[J])(implicit ts: ParamConcat.Aux[T, J, IJ]): MultipleQueryable[IJ] =
+      MultipleQueryable(Vector.empty, Vector(this, other))
+  }
+
+  case class Query[T](name: String, codec: PlainCodecFromMany[T], info: EndpointIO.Info[T]) extends SingleQueryable[T] {
     def description(d: String): Query[T] = copy(info = info.description(d))
     def example(t: T): Query[T] = copy(info = info.example(t))
     def show = s"?$name"
   }
 
-  case class QueryParams(info: EndpointIO.Info[MultiQueryParams]) extends Single[MultiQueryParams] {
+  case class QueryParams(info: EndpointIO.Info[MultiQueryParams]) extends SingleQueryable[MultiQueryParams] {
     def description(d: String): QueryParams = copy(info = info.description(d))
     def example(t: MultiQueryParams): QueryParams = copy(info = info.example(t))
     def show = s"?{multiple params}"
@@ -91,6 +100,37 @@ object EndpointInput {
         case EndpointIO.Multiple(m) => Multiple(inputs ++ m)
       }
     def show: String = if (inputs.isEmpty) "-" else inputs.map(_.show).mkString(" ")
+  }
+
+  case class MultiplePathable[I](inputs: Vector[SinglePathable[_]]) extends EndpointInput[I] {
+    override def and[J, IJ](other: EndpointInput[J])(implicit ts: ParamConcat.Aux[I, J, IJ]): EndpointInput.Multiple[IJ] =
+      other match {
+        case s: Single[_]           => Multiple(inputs :+ s)
+        case Multiple(m)            => Multiple(inputs ++ m)
+        case EndpointIO.Multiple(m) => Multiple(inputs ++ m)
+      }
+    def show: String = if (inputs.isEmpty) "-" else inputs.map(_.show).mkString(" ")
+
+    def /[J, IJ](other: SinglePathable[J])(implicit ts: ParamConcat.Aux[I, J, IJ]): MultiplePathable[IJ] = {
+      MultiplePathable(inputs :+ other)
+    }
+
+    def /[J, IJ](other: MultiplePathable[J])(implicit ts: ParamConcat.Aux[I, J, IJ]): MultiplePathable[IJ] = {
+      MultiplePathable(inputs ++ other.inputs)
+    }
+    def ?[J, IJ](other: SingleQueryable[J])(implicit ts: ParamConcat.Aux[I, J, IJ]): MultipleQueryable[IJ] =
+      MultipleQueryable(inputs, Vector(other))
+  }
+
+  case class MultipleQueryable[I](inputs: Vector[SinglePathable[_]], queryInputs: Vector[SingleQueryable[_]]) extends EndpointInput[I] {
+    override def and[J, IJ](other: EndpointInput[J])(implicit ts: ParamConcat.Aux[I, J, IJ]): EndpointInput.Multiple[IJ] =
+      other match {
+        case s: Single[_]           => Multiple(queryInputs :+ s)
+        case Multiple(m)            => Multiple(queryInputs ++ m)
+        case EndpointIO.Multiple(m) => Multiple(queryInputs ++ m)
+      }
+    def show: String = if (queryInputs.isEmpty) "-" else queryInputs.map(_.show).mkString(" ")
+
   }
 }
 

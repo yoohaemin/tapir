@@ -1,17 +1,17 @@
 package tapir
 
 import org.scalatest.{FlatSpec, Matchers}
+import tapir.EndpointInput.MultiplePathable
 import tapir.util.CompileUtil
 
 class EndpointTest extends FlatSpec with Matchers {
   it should "compile inputs" in {
     endpoint.in(query[String]("q1")): Endpoint[String, Unit, Unit, Nothing]
-    endpoint.in(query[String]("q1").and(query[Int]("q2"))): Endpoint[(String, Int), Unit, Unit, Nothing]
+    endpoint.in(query[String]("q1") & query[Int]("q2")): Endpoint[(String, Int), Unit, Unit, Nothing]
 
     endpoint.in(header[String]("h1")): Endpoint[String, Unit, Unit, Nothing]
     endpoint.in(header[String]("h1").and(header[Int]("h2"))): Endpoint[(String, Int), Unit, Unit, Nothing]
-
-    endpoint.in("p" / "p2" / "p3"): Endpoint[Unit, Unit, Unit, Nothing]
+    endpoint.in("p" / "p2" / "p3" ? query[String]("q1")): Endpoint[String, Unit, Unit, Nothing]
     endpoint.in("p" / "p2" / "p3" / path[String]): Endpoint[String, Unit, Unit, Nothing]
     endpoint.in("p" / "p2" / "p3" / path[String] / path[Int]): Endpoint[(String, Int), Unit, Unit, Nothing]
 

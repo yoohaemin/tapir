@@ -4,9 +4,10 @@ import java.nio.charset.{Charset, StandardCharsets}
 
 import tapir.Codec.PlainCodec
 import tapir.CodecFromMany.PlainCodecFromMany
+import tapir.EndpointInput.PathSegment
 
 trait Tapir {
-  implicit def stringToPath(s: String): EndpointInput[Unit] = EndpointInput.PathSegment(s)
+  implicit def stringToPath(s: String): EndpointInput.PathSegment = EndpointInput.PathSegment(s)
 
   def path[T: PlainCodec]: EndpointInput.PathCapture[T] =
     EndpointInput.PathCapture(implicitly[PlainCodec[T]], None, EndpointIO.Info.empty)
@@ -55,4 +56,6 @@ trait Tapir {
       EndpointIO.Multiple(Vector.empty),
       EndpointInfo(None, None, None, Vector.empty)
     )
+
+  val Root: EndpointInput[Unit] = EndpointInput.PathSegment("/")
 }
