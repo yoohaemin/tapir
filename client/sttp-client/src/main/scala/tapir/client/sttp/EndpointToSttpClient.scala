@@ -5,15 +5,21 @@ import java.nio.ByteBuffer
 
 import com.softwaremill.sttp._
 import tapir.Codec.PlainCodec
+import tapir._
 import tapir.internal.SeqToParams
 import tapir.typelevel.ParamsAsArgs
-import tapir._
 
 class EndpointToSttpClient(clientOptions: SttpClientOptions) {
   // don't look. The code is really, really ugly.
 
-  def toSttpRequest[I, E, O, S](e: Endpoint[I, E, O, S], baseUri: Uri)(
+  def toSttpRequest[I, E, O, S](e: Endpoint[I, E, O, S])(
       implicit paramsAsArgs: ParamsAsArgs[I]): paramsAsArgs.FN[Request[Either[E, O], S]] = {
+    toSttpRequest(e, uri"${e.server.get.url}")(paramsAsArgs)
+  }
+
+  def toSttpRequest[I, E, O, S](e: Endpoint[I, E, O, S], baseUri: Uri)(
+      implicit
+      paramsAsArgs: ParamsAsArgs[I]): paramsAsArgs.FN[Request[Either[E, O], S]] = {
     paramsAsArgs.toFn(params => {
       val baseReq = sttp
         .response(ignore)

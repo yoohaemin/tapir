@@ -4,11 +4,11 @@ import java.nio.ByteBuffer
 
 import cats.effect.{ContextShift, IO}
 import cats.implicits._
+import com.softwaremill.sttp._
+import com.softwaremill.sttp.asynchttpclient.fs2.AsyncHttpClientFs2Backend
 import tapir.Endpoint
 import tapir.client.tests.ClientTests
 import tapir.typelevel.ParamsAsArgs
-import com.softwaremill.sttp._
-import com.softwaremill.sttp.asynchttpclient.fs2.AsyncHttpClientFs2Backend
 
 import scala.concurrent.ExecutionContext
 
@@ -26,8 +26,11 @@ class SttpClientTests extends ClientTests[fs2.Stream[IO, ByteBuffer]] {
 
   override def send[I, E, O, FN[_]](e: Endpoint[I, E, O, fs2.Stream[IO, ByteBuffer]], port: Port, args: I)(
       implicit paramsAsArgs: ParamsAsArgs.Aux[I, FN]): IO[Either[E, O]] = {
-
-    paramsAsArgs.applyFn(e.toSttpRequest(uri"http://localhost:$port"), args).send().map(_.unsafeBody)
+    if (e.server.isDefined) {
+      paramsAsArgs.applyFn(e.toSttpRequest, args).send().map(_.unsafeBody)
+    } else {
+      paramsAsArgs.applyFn(e.toSttpRequest(uri"http://localhost:$port"), args).send().map(_.unsafeBody)
+    }
   }
 
   override protected def afterAll(): Unit = {

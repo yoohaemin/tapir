@@ -9,5 +9,8 @@ trait SttpClient {
     def toSttpRequest(baseUri: Uri)(implicit paramsAsArgs: ParamsAsArgs[I],
                                     clientOptions: SttpClientOptions): paramsAsArgs.FN[Request[Either[E, O], S]] =
       new EndpointToSttpClient(clientOptions).toSttpRequest(e, baseUri)
+
+    def toSttpRequest(implicit paramsAsArgs: ParamsAsArgs[I], clientOptions: SttpClientOptions): paramsAsArgs.FN[Request[Either[E, O], S]] =
+      new EndpointToSttpClient(clientOptions).toSttpRequest(e)
   }
 }
