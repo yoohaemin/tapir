@@ -2,10 +2,10 @@ package tapir.docs.openapi
 
 import tapir.docs.openapi.schema.ObjectSchemas
 import tapir.openapi.OpenAPI.ReferenceOr
-import tapir.openapi.{MediaType => OMediaType, _}
+import tapir.openapi.{MediaType => OMediaType, Server => OpenApiServer, _}
 import tapir.{EndpointInput, MediaType => SMediaType, Schema => SSchema, _}
 
-private[openapi] class EndpointToOpenApiPaths(objectSchemas: ObjectSchemas, options: OpenAPIDocsOptions) {
+private[openapi] class EndpointToOpenApiPaths(objectSchemas: ObjectSchemas, servers: List[Server], options: OpenAPIDocsOptions) {
 
   def pathItem(e: Endpoint[_, _, _, _]): (String, PathItem) = {
     import Method._
@@ -19,6 +19,7 @@ private[openapi] class EndpointToOpenApiPaths(objectSchemas: ObjectSchemas, opti
 
     val operation = Some(endpointToOperation(defaultId, e))
     val pathItem = PathItem(
+      servers = servers.map(serverToOpenApi),
       None,
       None,
       get = if (e.method == GET) operation else None,
@@ -29,12 +30,13 @@ private[openapi] class EndpointToOpenApiPaths(objectSchemas: ObjectSchemas, opti
       head = if (e.method == HEAD) operation else None,
       patch = if (e.method == PATCH) operation else None,
       trace = if (e.method == TRACE) operation else None,
-      servers = List.empty,
       parameters = List.empty
     )
 
     ("/" + pathComponents.mkString("/"), pathItem)
   }
+
+  private def serverToOpenApi(server: Server) = OpenApiServer(server.url, server.description)
 
   private def endpointToOperation(defaultId: String, e: Endpoint[_, _, _, _]): Operation = {
     val parameters = operationParameters(e)

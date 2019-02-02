@@ -73,8 +73,6 @@ trait ClientTests[S] extends FunSuite with Matchers with BeforeAndAfterAll {
       .right
       .get should contain allOf (("X-Fruit", "elppa"), ("Y-Fruit", "egnarO"))
   }
-
-  testClient(endpoint.server(Server(s"http://localhost:$port")), (), Right(()))
   //
 
   def mkStream(s: String): S
@@ -119,7 +117,7 @@ trait ClientTests[S] extends FunSuite with Matchers with BeforeAndAfterAll {
 
   def send[I, E, O, FN[_]](e: Endpoint[I, E, O, S], port: Port, args: I)(implicit paramsAsArgs: ParamsAsArgs.Aux[I, FN]): IO[Either[E, O]]
 
-  def testClient[I, E, O, FN[_]](e: => Endpoint[I, E, O, S], args: I, expectedResult: Either[E, O])(
+  def testClient[I, E, O, FN[_]](e: Endpoint[I, E, O, S], args: I, expectedResult: Either[E, O])(
       implicit paramsAsArgs: ParamsAsArgs.Aux[I, FN]): Unit = {
 
     test(e.show) {

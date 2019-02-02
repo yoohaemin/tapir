@@ -1,0 +1,26 @@
+openapi: 3.0.1
+info:
+  title: Fruits
+  version: '1.0'
+paths:
+  /:
+    servers:
+      - url: http://tapir.io
+        description: Tapir server definition
+      - url: http://dev.tapir.io
+        description: Tapir development server definition
+    get:
+      operationId: root-get
+      parameters:
+        - name: fruit
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            text/plain:
+              schema:
+                type: string

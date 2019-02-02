@@ -1,6 +1,6 @@
 package tapir.openapi
 
-import OpenAPI.ReferenceOr
+import tapir.openapi.OpenAPI.ReferenceOr
 
 // todo security, tags, externaldocs
 case class OpenAPI(openapi: String = "3.0.1",
@@ -43,22 +43,21 @@ case class Components(
 )
 
 // todo: $ref
-case class PathItem(
-    summary: Option[String],
-    description: Option[String],
-    get: Option[Operation],
-    put: Option[Operation],
-    post: Option[Operation],
-    delete: Option[Operation],
-    options: Option[Operation],
-    head: Option[Operation],
-    patch: Option[Operation],
-    trace: Option[Operation],
-    servers: List[Server],
-    parameters: List[ReferenceOr[Parameter]]
-) {
+case class PathItem(servers: List[Server],
+                    summary: Option[String],
+                    description: Option[String],
+                    get: Option[Operation],
+                    put: Option[Operation],
+                    post: Option[Operation],
+                    delete: Option[Operation],
+                    options: Option[Operation],
+                    head: Option[Operation],
+                    patch: Option[Operation],
+                    trace: Option[Operation],
+                    parameters: List[ReferenceOr[Parameter]]) {
   def mergeWith(other: PathItem): PathItem = {
     PathItem(
+      servers = List.empty,
       None,
       None,
       get = get.orElse(other.get),
@@ -69,7 +68,6 @@ case class PathItem(
       head = head.orElse(other.head),
       patch = patch.orElse(other.patch),
       trace = trace.orElse(other.trace),
-      servers = List.empty,
       parameters = List.empty
     )
   }

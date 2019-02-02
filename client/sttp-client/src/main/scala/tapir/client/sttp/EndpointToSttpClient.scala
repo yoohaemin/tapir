@@ -12,12 +12,7 @@ import tapir.typelevel.ParamsAsArgs
 class EndpointToSttpClient(clientOptions: SttpClientOptions) {
   // don't look. The code is really, really ugly.
 
-  def toSttpRequest[I, E, O, S](e: Endpoint[I, E, O, S])(
-      implicit paramsAsArgs: ParamsAsArgs[I]): paramsAsArgs.FN[Request[Either[E, O], S]] = {
-    toSttpRequest(e, uri"${e.server.get.url}")(paramsAsArgs)
-  }
-
-  def toSttpRequest[I, E, O, S](e: Endpoint[I, E, O, S], baseUri: Uri)(
+  def toSttpRequest[I, E, O, S](e: Endpoint[I, E, O, S], server: Server)(
       implicit
       paramsAsArgs: ParamsAsArgs[I]): paramsAsArgs.FN[Request[Either[E, O], S]] = {
     paramsAsArgs.toFn(params => {
@@ -25,7 +20,7 @@ class EndpointToSttpClient(clientOptions: SttpClientOptions) {
         .response(ignore)
         .mapResponse(Right(_): Either[Any, Any])
 
-      val (uri, req) = setInputParams(e.input.asVectorOfSingle, params, paramsAsArgs, 0, baseUri, baseReq)
+      val (uri, req) = setInputParams(e.input.asVectorOfSingle, params, paramsAsArgs, 0, uri"${server.url}", baseReq)
 
       var req2 = req.copy[Id, Either[Any, Any], Any](method = com.softwaremill.sttp.Method(e.method.m), uri = uri)
 

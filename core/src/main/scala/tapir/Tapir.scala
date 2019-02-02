@@ -53,7 +53,6 @@ trait Tapir {
       EndpointInput.Multiple(Vector.empty),
       EndpointIO.Multiple(Vector.empty),
       EndpointIO.Multiple(Vector.empty),
-      EndpointInfo(None, None, None, Vector.empty),
-      None
+      EndpointInfo(None, None, None, Vector.empty)
     )
 }

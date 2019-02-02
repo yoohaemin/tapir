@@ -12,8 +12,7 @@ case class Endpoint[I, E, O, +S](method: Method,
                                  input: EndpointInput[I],
                                  errorOutput: EndpointIO[E],
                                  output: EndpointIO[O],
-                                 info: EndpointInfo,
-                                 server: Option[Server]) {
+                                 info: EndpointInfo) {
 
   def get: Endpoint[I, E, O, S] = this.copy[I, E, O, S](method = Method.GET)
   def head: Endpoint[I, E, O, S] = this.copy[I, E, O, S](method = Method.HEAD)
@@ -70,10 +69,8 @@ case class Endpoint[I, E, O, +S](method: Method,
 
   def info(i: EndpointInfo): Endpoint[I, E, O, S] = copy(info = i)
 
-  def server(s: Server): Endpoint[I, E, O, S] = copy(server = Some(s))
-
   def show: String =
-    s"Endpoint${info.name.map("[" + _ + "]").getOrElse("")}(${method.m}, in: ${input.show}, errout: ${errorOutput.show}, out: ${output.show}, server: ${server.map(_.url).getOrElse("")})"
+    s"Endpoint${info.name.map("[" + _ + "]").getOrElse("")}(${method.m}, in: ${input.show}, errout: ${errorOutput.show}, out: ${output.show})"
 }
 
 case class EndpointInfo(name: Option[String], summary: Option[String], description: Option[String], tags: Vector[String]) {
@@ -84,4 +81,4 @@ case class EndpointInfo(name: Option[String], summary: Option[String], descripti
   def tag(t: String): EndpointInfo = copy(tags = tags :+ t)
 }
 
-case class Server(url: String)
+case class Server(url: String, description: Option[String] = None)

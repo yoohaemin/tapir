@@ -77,6 +77,18 @@ class VerifyYamlTest extends FunSuite with Matchers {
     actualYamlNoIndent shouldBe expectedYaml
   }
 
+  test("should match the expected yaml for endpoint with server") {
+    val expectedYaml = loadYaml("expected_endpoint_with_server.yml")
+
+    val servers =
+      List(Server("http://tapir.io", Some("Tapir server definition")),
+           Server("http://dev.tapir.io", Some("Tapir development server definition")))
+    val actualYaml = in_query_out_string.toOpenAPI("Fruits", "1.0", servers).toYaml
+    val actualYamlNoIndent = noIndentation(actualYaml)
+
+    actualYamlNoIndent shouldBe expectedYaml
+  }
+
   private def loadYaml(fileName: String): String = {
     noIndentation(Source.fromResource(fileName).getLines().mkString("\n"))
   }
