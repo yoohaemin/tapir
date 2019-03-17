@@ -9,8 +9,8 @@ class ObjectSchemas(tschemaToOSchema: TSchemaToOSchema, schemaKeys: Map[SObjectI
   def apply(schema: TSchema): ReferenceOr[OSchema] = {
     schema match {
       // by construction, references to all object schemas should be present in tschemaToOSchema
-      case SObject(info, _, _) => tschemaToOSchema(SRef(info.fullName))
-      case _                   => tschemaToOSchema(schema)
+      case SObject(info, _, _, _) => tschemaToOSchema(SRef(info.fullName))
+      case _                      => tschemaToOSchema(schema)
     }
   }
 

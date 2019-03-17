@@ -1,13 +1,12 @@
 package tapir.generic
 
 import magnolia._
-import tapir.{Schema, SchemaFor}
 import tapir.Schema._
+import tapir.generic.SchemaForMagnoliaDerivation.deriveInProgress
+import tapir.{Schema, SchemaFor}
 
 import scala.collection.mutable
 import scala.language.experimental.macros
-
-import SchemaForMagnoliaDerivation.deriveInProgress
 
 trait SchemaForMagnoliaDerivation {
   type Typeclass[T] = SchemaFor[T]

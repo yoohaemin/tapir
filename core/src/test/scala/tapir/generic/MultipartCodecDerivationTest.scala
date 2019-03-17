@@ -65,7 +65,7 @@ class MultipartCodecDerivationTest extends FlatSpec with Matchers {
     // when
     codec.meta.schema shouldBe SObject(
       SObjectInfo("Test6", "tapir.generic.MultipartCodecDerivationTest.<local MultipartCodecDerivationTest>.Test6"),
-      List(("f1", SString), ("f2", SInteger)),
+      List(("f1", SString()), ("f2", SInteger())),
       List("f1", "f2")
     )
   }
@@ -78,7 +78,7 @@ class MultipartCodecDerivationTest extends FlatSpec with Matchers {
     // when
     codec.meta.schema shouldBe SObject(
       SObjectInfo("Test1", "tapir.generic.MultipartCodecDerivationTest.<local MultipartCodecDerivationTest>.Test1"),
-      List(("f1", SBinary), ("f2", SInteger)),
+      List(("f1", SBinary()), ("f2", SInteger())),
       List("f1", "f2")
     )
   }

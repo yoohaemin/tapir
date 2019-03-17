@@ -50,17 +50,17 @@ object Codec extends FormCodecDerivation with MultipartCodecDerivation {
   type JsonCodec[T] = Codec[T, MediaType.Json, String]
 
   implicit val stringPlainCodecUtf8: PlainCodec[String] = stringCodec(StandardCharsets.UTF_8)
-  implicit val shortPlainCodec: PlainCodec[Short] = plainCodec[Short](_.toShort, Schema.SInteger)
-  implicit val intPlainCodec: PlainCodec[Int] = plainCodec[Int](_.toInt, Schema.SInteger)
-  implicit val longPlainCodec: PlainCodec[Long] = plainCodec[Long](_.toLong, Schema.SInteger)
-  implicit val floatPlainCodec: PlainCodec[Float] = plainCodec[Float](_.toFloat, Schema.SNumber)
-  implicit val doublePlainCodec: PlainCodec[Double] = plainCodec[Double](_.toDouble, Schema.SNumber)
+  implicit val shortPlainCodec: PlainCodec[Short] = plainCodec[Short](_.toShort, Schema.SInteger())
+  implicit val intPlainCodec: PlainCodec[Int] = plainCodec[Int](_.toInt, Schema.SInteger())
+  implicit val longPlainCodec: PlainCodec[Long] = plainCodec[Long](_.toLong, Schema.SInteger())
+  implicit val floatPlainCodec: PlainCodec[Float] = plainCodec[Float](_.toFloat, Schema.SNumber())
+  implicit val doublePlainCodec: PlainCodec[Double] = plainCodec[Double](_.toDouble, Schema.SNumber())
   implicit val booleanPlainCodec: PlainCodec[Boolean] = plainCodec[Boolean](_.toBoolean, Schema.SBoolean)
-  implicit val uuidPlainCodec: PlainCodec[UUID] = plainCodec[UUID](UUID.fromString, Schema.SString)
+  implicit val uuidPlainCodec: PlainCodec[UUID] = plainCodec[UUID](UUID.fromString, Schema.SString())
 
-  def stringCodec(charset: Charset): PlainCodec[String] = plainCodec(identity, Schema.SString, charset)
+  def stringCodec(charset: Charset): PlainCodec[String] = plainCodec(identity, Schema.SString(), charset)
 
-  private def plainCodec[T](parse: String => T, _schema: Schema, charset: Charset = StandardCharsets.UTF_8): PlainCodec[T] =
+  def plainCodec[T](parse: String => T, _schema: Schema, charset: Charset = StandardCharsets.UTF_8): PlainCodec[T] =
     new PlainCodec[T] {
       override def encode(t: T): String = t.toString
       override def decode(s: String): DecodeResult[T] =
@@ -80,7 +80,7 @@ object Codec extends FormCodecDerivation with MultipartCodecDerivation {
   def binaryCodec[T](_rawValueType: RawValueType[T]): Codec[T, MediaType.OctetStream, T] = new Codec[T, MediaType.OctetStream, T] {
     override def encode(b: T): T = b
     override def decode(b: T): DecodeResult[T] = Value(b)
-    override val meta: CodecMeta[MediaType.OctetStream, T] = CodecMeta(Schema.SBinary, MediaType.OctetStream(), _rawValueType)
+    override val meta: CodecMeta[MediaType.OctetStream, T] = CodecMeta(Schema.SBinary(), MediaType.OctetStream(), _rawValueType)
   }
 
   implicit val formSeqCodecUtf8: Codec[Seq[(String, String)], MediaType.XWwwFormUrlencoded, String] = formSeqCodec(StandardCharsets.UTF_8)
@@ -140,7 +140,7 @@ object Codec extends FormCodecDerivation with MultipartCodecDerivation {
         DecodeResult.sequence(anyParts)
       }
       override val meta: CodecMeta[MediaType.MultipartFormData, Seq[RawPart]] =
-        CodecMeta(Schema.SBinary, MediaType.MultipartFormData(), mvt)
+        CodecMeta(Schema.SBinary(), MediaType.MultipartFormData(), mvt)
     }
 }
 

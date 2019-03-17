@@ -1,0 +1,34 @@
+openapi: 3.0.1
+info:
+  title: Fruits
+  version: '1.0'
+paths:
+  /:
+    get:
+      operationId: getRoot
+      parameters:
+        - name: color
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FruitColor'
+components:
+  schemas:
+    FruitColor:
+      required:
+        - fruit
+        - color
+      type: object
+      properties:
+        fruit:
+          type: string
+        color:
+          type: integer
+          minimum: 1

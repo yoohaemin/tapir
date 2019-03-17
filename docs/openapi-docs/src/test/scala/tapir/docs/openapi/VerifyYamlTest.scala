@@ -1,8 +1,13 @@
 package tapir.docs.openapi
 
+import com.softwaremill.tagging.{@@, Tagger}
 import io.circe.generic.auto._
+import io.circe.{Decoder, Encoder}
 import org.scalatest.{FunSuite, Matchers}
+import tapir.Codec.PlainCodec
 import tapir._
+import tapir.Codec._
+import tapir.docs.openapi.VerifyYamlTest.Color
 import tapir.json.circe._
 import tapir.model.Method
 import tapir.openapi.circe.yaml._
@@ -55,7 +60,7 @@ class VerifyYamlTest extends FunSuite with Matchers {
 
   val streaming_endpoint: Endpoint[Vector[Byte], Unit, Vector[Byte], Vector[Byte]] = endpoint
     .in(streamBody[Vector[Byte]](schemaFor[String], MediaType.TextPlain()))
-    .out(streamBody[Vector[Byte]](Schema.SBinary, MediaType.OctetStream()))
+    .out(streamBody[Vector[Byte]](Schema.SBinary(), MediaType.OctetStream()))
 
   test("should match the expected yaml for streaming endpoints") {
     val expectedYaml = loadYaml("expected_streaming.yml")
@@ -128,6 +133,67 @@ class VerifyYamlTest extends FunSuite with Matchers {
     actualYamlNoIndent shouldBe expectedYaml
   }
 
+  test("should support constraints with plainCodec") {
+    val expectedYaml = loadYaml("expected_22.yml")
+
+    implicit val schemaForColor: SchemaFor[Int @@ Color] = new SchemaFor[Int @@ Color] {
+      override def schema: Schema = Schema.SInteger(constraints = List(Constraint.Minimum(5.0d)))
+    }
+
+    // TODO consider moving to separate module
+    implicit def taggedPlainCodec[U, T](implicit uc: PlainCodec[U], sf: SchemaFor[U @@ T]): Codec[U @@ T, MediaType.TextPlain, String] =
+      uc.map(_.taggedWith[T])(identity).schema(sf.schema)
+
+    val all_the_way_2: Endpoint[Int @@ Color, Unit, String, Nothing] = endpoint
+      .in(query[Int @@ Color]("color"))
+      .out(stringBody)
+    val i = List(all_the_way_2).toOpenAPI(Info("Fruits", "1.0"))
+    val actualYaml = i.toYaml
+    val actualYamlNoIndent = noIndentation(actualYaml)
+
+    actualYamlNoIndent shouldBe expectedYaml
+  }
+
+  test("should match the expected yaml 33") {
+    val expectedYaml = loadYaml("expected_3.yml")
+//    implicit val schemaForColor: SchemaFor[Int @@ Color] =
+//      SchemaFor.SchemaForInt.constraint(Constraint.Minimum(1)).asInstanceOf[SchemaFor[Int @@ Color]]
+
+    val s = new SchemaFor[Int @@ Color] { override def schema: Schema = Schema.SString(List(Constraint.Enum(List("a")))) }
+
+    implicit val colorEncoder: Encoder[Int @@ Color] =
+      Encoder.encodeInt.asInstanceOf[Encoder[Int @@ Color]]
+
+    implicit val colorDecoder: Decoder[Int @@ Color] =
+      Decoder.decodeInt.asInstanceOf[Decoder[Int @@ Color]]
+
+    val all_the_way_3: Endpoint[String, Unit, FruitColor, Nothing] = endpoint
+      .in(query[String]("color"))
+      .out(jsonBody[FruitColor])
+    val i = List(all_the_way_3).toOpenAPI(Info("Fruits", "1.0"))
+    val actualYaml = i.toYaml
+    val actualYamlNoIndent = noIndentation(actualYaml)
+
+    actualYamlNoIndent shouldBe expectedYaml
+  }
+
+  test("should match the expected yaml 44") {
+    import CanConstraint._
+    val expectedYaml = loadYaml("expected_3.yml")
+    implicit val schemaForColor: SchemaFor[List[String]] = new SchemaFor[List[String]] {
+      override def schema: Schema = implicitly[SchemaFor[List[String]]].schema
+    }
+
+    val all_the_way_3: Endpoint[List[String], Unit, FruitColor, Nothing] = endpoint
+      .in(query[List[String]]("color"))
+      .out(jsonBody[FruitColor])
+    val i = List(all_the_way_3).toOpenAPI(Info("Fruits", "1.0"))
+    val actualYaml = i.toYaml
+    val actualYamlNoIndent = noIndentation(actualYaml)
+
+    actualYamlNoIndent shouldBe expectedYaml
+  }
+
   private def loadYaml(fileName: String): String = {
     noIndentation(Source.fromResource(fileName).getLines().mkString("\n"))
   }
@@ -135,4 +201,10 @@ class VerifyYamlTest extends FunSuite with Matchers {
   private def noIndentation(s: String) = s.replaceAll("[ \t]", "").trim
 }
 
+object VerifyYamlTest {
+  type Color = Int
+}
+
 case class F1(data: List[F1])
+case class FruitColor(fruit: String, color: Int @@ Color)
+class Wrapper(val un: Int) extends AnyVal
