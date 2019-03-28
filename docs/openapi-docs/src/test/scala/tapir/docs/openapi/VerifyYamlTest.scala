@@ -4,9 +4,9 @@ import com.softwaremill.tagging.{@@, Tagger}
 import io.circe.generic.auto._
 import io.circe.{Decoder, Encoder}
 import org.scalatest.{FunSuite, Matchers}
-import tapir.Codec.PlainCodec
+import tapir.Codec.{PlainCodec, _}
+import tapir.Schema.SArray
 import tapir._
-import tapir.Codec._
 import tapir.docs.openapi.VerifyYamlTest.Color
 import tapir.json.circe._
 import tapir.model.Method
@@ -133,33 +133,31 @@ class VerifyYamlTest extends FunSuite with Matchers {
     actualYamlNoIndent shouldBe expectedYaml
   }
 
-  test("should support constraints with plainCodec") {
-    val expectedYaml = loadYaml("expected_22.yml")
+  test("should support constraints for tagged types in input") {
+    val expectedYaml = loadYaml("expected_constraints_tagged_input.yml")
 
     implicit val schemaForColor: SchemaFor[Int @@ Color] = new SchemaFor[Int @@ Color] {
-      override def schema: Schema = Schema.SInteger(constraints = List(Constraint.Minimum(5.0d)))
+      override def schema: Schema = Schema.SInteger(List(Constraint.Minimum(1)))
     }
 
     // TODO consider moving to separate module
     implicit def taggedPlainCodec[U, T](implicit uc: PlainCodec[U], sf: SchemaFor[U @@ T]): Codec[U @@ T, MediaType.TextPlain, String] =
       uc.map(_.taggedWith[T])(identity).schema(sf.schema)
 
-    val all_the_way_2: Endpoint[Int @@ Color, Unit, String, Nothing] = endpoint
+    val e = endpoint
       .in(query[Int @@ Color]("color"))
       .out(stringBody)
-    val i = List(all_the_way_2).toOpenAPI(Info("Fruits", "1.0"))
+    val i = List(e).toOpenAPI(Info("Fruits", "1.0"))
     val actualYaml = i.toYaml
     val actualYamlNoIndent = noIndentation(actualYaml)
 
     actualYamlNoIndent shouldBe expectedYaml
   }
 
-  test("should match the expected yaml 33") {
-    val expectedYaml = loadYaml("expected_3.yml")
-//    implicit val schemaForColor: SchemaFor[Int @@ Color] =
-//      SchemaFor.SchemaForInt.constraint(Constraint.Minimum(1)).asInstanceOf[SchemaFor[Int @@ Color]]
+  test("should support constraints for tagged types in output") {
+    val expectedYaml = loadYaml("expected_constraints_taggged_output.yml")
 
-    val s = new SchemaFor[Int @@ Color] { override def schema: Schema = Schema.SString(List(Constraint.Enum(List("a")))) }
+    implicit val s = new SchemaFor[Int @@ Color] { override def schema: Schema = Schema.SInteger(List(Constraint.Minimum(1))) }
 
     implicit val colorEncoder: Encoder[Int @@ Color] =
       Encoder.encodeInt.asInstanceOf[Encoder[Int @@ Color]]
@@ -167,30 +165,46 @@ class VerifyYamlTest extends FunSuite with Matchers {
     implicit val colorDecoder: Decoder[Int @@ Color] =
       Decoder.decodeInt.asInstanceOf[Decoder[Int @@ Color]]
 
-    val all_the_way_3: Endpoint[String, Unit, FruitColor, Nothing] = endpoint
+    val e = endpoint
       .in(query[String]("color"))
       .out(jsonBody[FruitColor])
-    val i = List(all_the_way_3).toOpenAPI(Info("Fruits", "1.0"))
+    val i = List(e).toOpenAPI(Info("Fruits", "1.0"))
     val actualYaml = i.toYaml
     val actualYamlNoIndent = noIndentation(actualYaml)
 
     actualYamlNoIndent shouldBe expectedYaml
   }
 
-  test("should match the expected yaml 44") {
+  test("should support constraints in known types in output through implicit overriding") {
     import CanConstraint._
-    val expectedYaml = loadYaml("expected_3.yml")
-    implicit val schemaForColor: SchemaFor[List[String]] = new SchemaFor[List[String]] {
-      override def schema: Schema = implicitly[SchemaFor[List[String]]].schema
+    val expectedYaml = loadYaml("expected_constraints_known_output.yml")
+
+    implicit def schemaForIterable[T: SchemaFor, C[_] <: Iterable[_]]: SchemaFor[C[T]] = new SchemaFor[C[T]] {
+      override def schema: Schema = SArray(implicitly[SchemaFor[String]].schema, List(Constraint.MaxItems(10)))
     }
 
-    val all_the_way_3: Endpoint[List[String], Unit, FruitColor, Nothing] = endpoint
-      .in(query[List[String]]("color"))
-      .out(jsonBody[FruitColor])
-    val i = List(all_the_way_3).toOpenAPI(Info("Fruits", "1.0"))
+    val e = endpoint
+      .in(query[String]("color"))
+      .out(jsonBody[F1])
+    val i = List(e).toOpenAPI(Info("Fruits", "1.0"))
     val actualYaml = i.toYaml
     val actualYamlNoIndent = noIndentation(actualYaml)
+    actualYamlNoIndent shouldBe expectedYaml
+  }
 
+  test("should support constraints in known types in input through implicit overriding") {
+    import CanConstraint._
+    val expectedYaml = loadYaml("expected_constraints_known_input.yml")
+
+    implicit val s = new SchemaFor[Int] { override def schema: Schema = Schema.SInteger(List(Constraint.Minimum(1))) }
+
+    val e = endpoint
+      .in(query[Int]("color"))
+      .out(stringBody)
+    val i = List(e).toOpenAPI(Info("Fruits", "1.0"))
+    val actualYaml = i.toYaml
+    val actualYamlNoIndent = noIndentation(actualYaml)
+    println(actualYaml)
     actualYamlNoIndent shouldBe expectedYaml
   }
 

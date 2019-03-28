@@ -3,6 +3,7 @@ package tapir
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.file.Path
+import java.util.UUID
 
 import tapir.Schema._
 import tapir.generic.SchemaForMagnoliaDerivation
@@ -55,6 +56,10 @@ object SchemaFor extends SchemaForMagnoliaDerivation {
 
   implicit case object SchemaForByteBuffer extends SchemaFor[ByteBuffer] {
     override val schema: Schema = SBinary()
+  }
+
+  implicit case object SchemaForUUID extends SchemaFor[UUID] {
+    override val schema: Schema = SString()
   }
 
   implicit def schemaForOption[T: SchemaFor]: SchemaFor[Option[T]] = new SchemaFor[Option[T]] {

@@ -1,8 +1,11 @@
 package tapir
-import scala.collection.TraversableLike
 
 sealed trait Schema {
   def show: String
+}
+
+sealed trait ConstraintAbleSchema[S <: Schema] extends Schema {
+  def constraint[C <: Constraint](constraint: C)(implicit canConstraint: CanConstraint[S, C]): S
 }
 
 sealed trait Constraint
@@ -15,9 +18,12 @@ object Constraint {
   case class MinItems(value: Int) extends Constraint
   case class MaxItems(value: Int) extends Constraint
   case class Enum[T](values: List[T]) extends Constraint
+
+  implicit def asSafeConstraint[C <: Constraint, S <: Schema](c: C)(implicit canConstraint: CanConstraint[S, C]) =
+    SafeConstraint(c, canConstraint)
 }
 
-trait CanConstraint[T, U]
+trait CanConstraint[S <: Schema, +C <: Constraint]
 object CanConstraint {
   implicit object CanPatternString extends CanConstraint[Schema.SString, Constraint.Pattern]
 
@@ -39,13 +45,16 @@ object CanConstraint {
   implicit object CanEnumString extends CanConstraint[Schema.SString, Constraint.Enum[String]]
 }
 
+case class SafeConstraint[+C <: Constraint, S <: Schema](constraint: C, canConstraint: CanConstraint[S, C])
+
 object Schema {
-  case class SString(constraints: List[Constraint] = List()) extends Schema {
+  case class SString(constraints: List[SafeConstraint[Constraint, SString]] = List()) extends Schema {
     def show: String = "string"
   }
-  case class SInteger(constraints: List[Constraint] = List()) extends Schema {
+  case class SInteger(constraints: List[SafeConstraint[Constraint, SInteger]] = List()) extends Schema {
     def show: String = "integer"
   }
+
   case class SNumber(constraints: List[Constraint] = List()) extends Schema {
     def show: String = "number"
   }
@@ -55,7 +64,7 @@ object Schema {
   case class SObject(info: SObjectInfo, fields: Iterable[(String, Schema)], required: Iterable[String]) extends Schema {
     def show: String = s"object(${fields.map(f => s"${f._1}->${f._2.show}").mkString(",")};required:${required.mkString(",")})"
   }
-  case class SArray(element: Schema, constraints: List[Constraint] = List()) extends Schema {
+  case class SArray(element: Schema, constraints: List[SafeConstraint[Constraint, SArray]] = List()) extends Schema {
     def show: String = s"array(${element.show})"
   }
   case class SBinary(constraints: List[Constraint] = List()) extends Schema {

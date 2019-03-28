@@ -189,11 +189,12 @@ case class Schema(title: Option[String],
                   writeOnly: Option[Boolean],
                   example: Option[ExampleValue],
                   deprecated: Option[Boolean],
-                  minimum: Option[Int])
+                  minimum: Option[Int],
+                  maxItems: Option[Int])
 
 object Schema {
   def apply(`type`: SchemaType.SchemaType): Schema =
-    Schema(None, List.empty, `type`, None, Map.empty, None, None, None, None, None, None, None, None, None)
+    Schema(None, List.empty, `type`, None, Map.empty, None, None, None, None, None, None, None, None, None, None)
 }
 
 object SchemaType extends Enumeration {

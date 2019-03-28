@@ -49,16 +49,19 @@ object Codec extends FormCodecDerivation with MultipartCodecDerivation {
   type PlainCodec[T] = Codec[T, MediaType.TextPlain, String]
   type JsonCodec[T] = Codec[T, MediaType.Json, String]
 
-  implicit val stringPlainCodecUtf8: PlainCodec[String] = stringCodec(StandardCharsets.UTF_8)
-  implicit val shortPlainCodec: PlainCodec[Short] = plainCodec[Short](_.toShort, Schema.SInteger())
-  implicit val intPlainCodec: PlainCodec[Int] = plainCodec[Int](_.toInt, Schema.SInteger())
-  implicit val longPlainCodec: PlainCodec[Long] = plainCodec[Long](_.toLong, Schema.SInteger())
-  implicit val floatPlainCodec: PlainCodec[Float] = plainCodec[Float](_.toFloat, Schema.SNumber())
-  implicit val doublePlainCodec: PlainCodec[Double] = plainCodec[Double](_.toDouble, Schema.SNumber())
-  implicit val booleanPlainCodec: PlainCodec[Boolean] = plainCodec[Boolean](_.toBoolean, Schema.SBoolean)
-  implicit val uuidPlainCodec: PlainCodec[UUID] = plainCodec[UUID](UUID.fromString, Schema.SString())
+  implicit def stringPlainCodecUtf8(implicit schemaFor: SchemaFor[String]): PlainCodec[String] = stringCodec(StandardCharsets.UTF_8)
+  implicit def shortPlainCodec(implicit schemaFor: SchemaFor[Short]): PlainCodec[Short] = plainCodec[Short](_.toShort, schemaFor.schema)
+  implicit def intPlainCodec(implicit schemaFor: SchemaFor[Int]): PlainCodec[Int] = plainCodec[Int](_.toInt, schemaFor.schema)
+  implicit def longPlainCodec(implicit schemaFor: SchemaFor[Long]): PlainCodec[Long] = plainCodec[Long](_.toLong, schemaFor.schema)
+  implicit def floatPlainCodec(implicit schemaFor: SchemaFor[Float]): PlainCodec[Float] = plainCodec[Float](_.toFloat, schemaFor.schema)
+  implicit def doublePlainCodec(implicit schemaFor: SchemaFor[Double]): PlainCodec[Double] =
+    plainCodec[Double](_.toDouble, schemaFor.schema)
+  implicit def booleanPlainCodec(implicit schemaFor: SchemaFor[Boolean]): PlainCodec[Boolean] =
+    plainCodec[Boolean](_.toBoolean, schemaFor.schema)
+  implicit def uuidPlainCodec(implicit schemaFor: SchemaFor[UUID]): PlainCodec[UUID] = plainCodec[UUID](UUID.fromString, schemaFor.schema)
 
-  def stringCodec(charset: Charset): PlainCodec[String] = plainCodec(identity, Schema.SString(), charset)
+  def stringCodec(charset: Charset)(implicit schemaFor: SchemaFor[String]): PlainCodec[String] =
+    plainCodec(identity, schemaFor.schema, charset)
 
   def plainCodec[T](parse: String => T, _schema: Schema, charset: Charset = StandardCharsets.UTF_8): PlainCodec[T] =
     new PlainCodec[T] {
