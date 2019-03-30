@@ -5,7 +5,6 @@ import io.circe.generic.auto._
 import io.circe.{Decoder, Encoder}
 import org.scalatest.{FunSuite, Matchers}
 import tapir.Codec.{PlainCodec, _}
-import tapir.Schema.SArray
 import tapir._
 import tapir.docs.openapi.VerifyYamlTest.Color
 import tapir.json.circe._
@@ -13,6 +12,8 @@ import tapir.model.Method
 import tapir.openapi.circe.yaml._
 import tapir.openapi.{Contact, Info, License}
 import tapir.tests._
+import tapir.Constraint._
+import tapir.Schema.SArray
 
 import scala.io.Source
 
@@ -134,12 +135,8 @@ class VerifyYamlTest extends FunSuite with Matchers {
   }
 
   test("should support constraints for tagged types in input") {
-    val expectedYaml = loadYaml("expected_constraints_tagged_input.yml")
-
-    implicit val schemaForColor: SchemaFor[Int @@ Color] = new SchemaFor[Int @@ Color] {
-      override def schema: Schema = Schema.SInteger(List(Constraint.Minimum(1)))
-    }
-
+    val expectedYaml = loadYaml("expected_constraints_custom_input.yml")
+    implicit val schemaForColor: SchemaFor[Int @@ Color] = SchemaFor(Schema.SInteger(Constraint.Minimum(1)))
     // TODO consider moving to separate module
     implicit def taggedPlainCodec[U, T](implicit uc: PlainCodec[U], sf: SchemaFor[U @@ T]): Codec[U @@ T, MediaType.TextPlain, String] =
       uc.map(_.taggedWith[T])(identity).schema(sf.schema)
@@ -154,16 +151,29 @@ class VerifyYamlTest extends FunSuite with Matchers {
     actualYamlNoIndent shouldBe expectedYaml
   }
 
+  test("should support constraints for value types in input") {
+    val expectedYaml = loadYaml("expected_constraints_custom_input.yml")
+    implicit val schemaForWrapper: SchemaFor[Wrapper] = SchemaFor(Schema.SInteger(Constraint.Minimum(1)))
+    implicit val wrapperEncoder: Encoder[Wrapper] = Encoder.encodeInt.contramap(_.un)
+    implicit val wrapperDecoder: Decoder[Wrapper] = Decoder.decodeInt.map(c => new Wrapper(c))
+    implicit def taggedPlainCodec(implicit uc: PlainCodec[Int], sf: SchemaFor[Wrapper]): Codec[Wrapper, MediaType.TextPlain, String] =
+      uc.map(c => new Wrapper(c))(_.un).schema(sf.schema)
+
+    val e = endpoint
+      .in(query[Wrapper]("color"))
+      .out(stringBody)
+    val i = List(e).toOpenAPI(Info("Fruits", "1.0"))
+    val actualYaml = i.toYaml
+    val actualYamlNoIndent = noIndentation(actualYaml)
+
+    actualYamlNoIndent shouldBe expectedYaml
+  }
+
   test("should support constraints for tagged types in output") {
     val expectedYaml = loadYaml("expected_constraints_taggged_output.yml")
-
-    implicit val s = new SchemaFor[Int @@ Color] { override def schema: Schema = Schema.SInteger(List(Constraint.Minimum(1))) }
-
-    implicit val colorEncoder: Encoder[Int @@ Color] =
-      Encoder.encodeInt.asInstanceOf[Encoder[Int @@ Color]]
-
-    implicit val colorDecoder: Decoder[Int @@ Color] =
-      Decoder.decodeInt.asInstanceOf[Decoder[Int @@ Color]]
+    implicit val schemaForColor: SchemaFor[Int @@ Color] = SchemaFor(Schema.SInteger(Constraint.Minimum(1)))
+    implicit val colorEncoder: Encoder[Int @@ Color] = Encoder.encodeInt.asInstanceOf[Encoder[Int @@ Color]]
+    implicit val colorDecoder: Decoder[Int @@ Color] = Decoder.decodeInt.asInstanceOf[Decoder[Int @@ Color]]
 
     val e = endpoint
       .in(query[String]("color"))
@@ -175,13 +185,10 @@ class VerifyYamlTest extends FunSuite with Matchers {
     actualYamlNoIndent shouldBe expectedYaml
   }
 
-  test("should support constraints in known types in output through implicit overriding") {
-    import CanConstraint._
+  test("should support constraints in builtin types in output through implicit overriding") {
     val expectedYaml = loadYaml("expected_constraints_known_output.yml")
-
-    implicit def schemaForIterable[T: SchemaFor, C[_] <: Iterable[_]]: SchemaFor[C[T]] = new SchemaFor[C[T]] {
-      override def schema: Schema = SArray(implicitly[SchemaFor[String]].schema, List(Constraint.MaxItems(10)))
-    }
+    implicit def schemaForIterable[T: SchemaFor, C[_] <: Iterable[_]]: SchemaFor[C[T]] =
+      SchemaFor(SArray(implicitly[SchemaFor[String]].schema, Constraint.MaxItems(10)))
 
     val e = endpoint
       .in(query[String]("color"))
@@ -192,11 +199,9 @@ class VerifyYamlTest extends FunSuite with Matchers {
     actualYamlNoIndent shouldBe expectedYaml
   }
 
-  test("should support constraints in known types in input through implicit overriding") {
-    import CanConstraint._
+  test("should support constraints in builtin types in input through implicit overriding") {
     val expectedYaml = loadYaml("expected_constraints_known_input.yml")
-
-    implicit val s = new SchemaFor[Int] { override def schema: Schema = Schema.SInteger(List(Constraint.Minimum(1))) }
+    implicit val schemaForInt: SchemaFor[Int] = SchemaFor(Schema.SInteger(Constraint.Minimum(1)))
 
     val e = endpoint
       .in(query[Int]("color"))

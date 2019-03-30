@@ -15,6 +15,11 @@ trait SchemaFor[T] { outer =>
   def show: String = s"schema is $schema"
 }
 object SchemaFor extends SchemaForMagnoliaDerivation {
+
+  def apply[T](aSchema: Schema): SchemaFor[T] = new SchemaFor[T] {
+    override def schema: Schema = aSchema
+  }
+
   implicit case object SchemaForString extends SchemaFor[String] {
     override val schema: Schema = SString()
   }
