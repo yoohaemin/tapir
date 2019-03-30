@@ -17,8 +17,8 @@ class SchemaForTest extends FlatSpec with Matchers {
     implicitly[SchemaFor[Short]].schema shouldBe an[SInteger]
     implicitly[SchemaFor[Int]].schema shouldBe an[SInteger]
     implicitly[SchemaFor[Long]].schema shouldBe an[SInteger]
-    implicitly[SchemaFor[Float]].schema shouldBe an[SNumber]
-    implicitly[SchemaFor[Double]].schema shouldBe an[SNumber]
+    implicitly[SchemaFor[Float]].schema shouldBe an[SNumber[Float]]
+    implicitly[SchemaFor[Double]].schema shouldBe an[SNumber[Double]]
     implicitly[SchemaFor[Boolean]].schema shouldBe SBoolean
   }
 

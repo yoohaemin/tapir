@@ -5,25 +5,25 @@ sealed trait Schema {
 }
 
 object Schema {
-  case class SString(constraints: List[UnsafeConstraint[Constraint, SString]] = List()) extends Schema {
+  case class SString(constraints: List[Constraint[String]] = List()) extends Schema {
     def show: String = "string"
   }
   object SString {
-    def apply(constraints: UnsafeConstraint[Constraint, SString]*): SString = SString(constraints.toList)
+    def apply(constraints: Constraint[String]*): SString = SString(constraints.toList)
   }
 
-  case class SInteger(constraints: List[UnsafeConstraint[Constraint, SInteger]] = List()) extends Schema {
+  case class SInteger(constraints: List[Constraint[Int]] = List()) extends Schema {
     def show: String = "integer"
   }
   object SInteger {
-    def apply(constraints: UnsafeConstraint[Constraint, SInteger]*): SInteger = SInteger(constraints.toList)
+    def apply(constraints: Constraint[Int]*): SInteger = SInteger(constraints.toList)
   }
 
-  case class SNumber(constraints: List[UnsafeConstraint[Constraint, SNumber]] = List()) extends Schema {
+  case class SNumber[T: Numeric](constraints: List[Constraint[T]] = List()) extends Schema {
     def show: String = "number"
   }
   object SNumber {
-    def apply(constraints: UnsafeConstraint[Constraint, SNumber]*): SNumber = SNumber(constraints.toList)
+    def apply[T: Numeric](constraints: Constraint[T]*): SNumber[T] = SNumber(constraints.toList)
   }
 
   case object SBoolean extends Schema {
@@ -34,18 +34,18 @@ object Schema {
     def show: String = s"object(${fields.map(f => s"${f._1}->${f._2.show}").mkString(",")};required:${required.mkString(",")})"
   }
 
-  case class SArray(element: Schema, constraints: List[UnsafeConstraint[Constraint, SArray]] = List()) extends Schema {
+  case class SArray(element: Schema, constraints: List[Constraint[Iterable[_]]] = List()) extends Schema {
     def show: String = s"array(${element.show})"
   }
   object SArray {
-    def apply(element: Schema, constraints: UnsafeConstraint[Constraint, SArray]*): SArray = SArray(element, constraints.toList)
+    def apply(element: Schema, constraints: Constraint[Iterable[_]]*): SArray = SArray(element, constraints.toList)
   }
 
-  case class SBinary(constraints: List[UnsafeConstraint[Constraint, SBinary]] = List()) extends Schema {
+  case class SBinary(constraints: List[Constraint[Iterable[_]]] = List()) extends Schema {
     def show: String = "binary"
   }
   object SBinary {
-    def apply(constraints: UnsafeConstraint[Constraint, SBinary]*): SBinary = SBinary(constraints.toList)
+    def apply(constraints: Constraint[Iterable[_]]*): SBinary = SBinary(constraints.toList)
   }
 
   case object SDate extends Schema {

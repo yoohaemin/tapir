@@ -3,7 +3,7 @@ package tapir.docs.openapi.schema
 import tapir.Schema.SRef
 import tapir.openapi.OpenAPI.ReferenceOr
 import tapir.openapi.{Schema => OSchema, _}
-import tapir.{Constraint, UnsafeConstraint, Schema => TSchema}
+import tapir.{Constraint, Schema => TSchema}
 
 /**
   * Converts a tapir schema to an OpenAPI schema, using the given map to resolve references.
@@ -42,39 +42,39 @@ private[schema] class TSchemaToOSchema(fullNameToKey: Map[String, SchemaKey]) {
     }
   }
 
-  private def minItems(c: List[UnsafeConstraint[Constraint, TSchema.SArray]]) = {
+  private def minItems(c: List[Constraint[_]]) = {
     collectConstraint(c) { case Constraint.MinItems(v) => v }
   }
 
-  private def maxItems(c: List[UnsafeConstraint[Constraint, TSchema.SArray]]) = {
+  private def maxItems(c: List[Constraint[_]]) = {
     collectConstraint(c) { case Constraint.MaxItems(v) => v }
   }
 
-  private def pattern(c: List[UnsafeConstraint[Constraint, TSchema.SString]]) = {
+  private def pattern(c: List[Constraint[_]]) = {
     collectConstraint(c) { case Constraint.Pattern(v) => v.toString() }
   }
 
-  private def maxLength(c: List[UnsafeConstraint[Constraint, TSchema.SString]]) = {
+  private def maxLength(c: List[Constraint[_]]) = {
     collectConstraint(c) { case Constraint.MaxLength(v) => v }
   }
 
-  private def minLength(c: List[UnsafeConstraint[Constraint, TSchema.SString]]) = {
+  private def minLength(c: List[Constraint[_]]) = {
     collectConstraint(c) { case Constraint.MinLength(v) => v }
   }
 
-  private def enum(c: List[UnsafeConstraint[Constraint, _]]) = {
+  private def enum(c: List[Constraint[_]]) = {
     collectConstraint(c) { case Constraint.Enum(v) => v.map(_.toString) }
   }
 
-  private def maximum(c: List[UnsafeConstraint[Constraint, _]]) = {
+  private def maximum(c: List[Constraint[_]]) = {
     collectConstraint(c) { case Constraint.Maximum(v) => v.toString }
   }
 
-  private def minimum(c: List[UnsafeConstraint[Constraint, _]]) = {
+  private def minimum(c: List[Constraint[_]]) = {
     collectConstraint(c) { case Constraint.Minimum(v) => v.toString }
   }
 
-  private def collectConstraint[T](c: List[UnsafeConstraint[Constraint, _]])(collector: PartialFunction[Constraint, T]) = {
-    c.map(_.constraint).collectFirst(collector)
+  private def collectConstraint[T](c: List[Constraint[_]])(collector: PartialFunction[Constraint[_], T]) = {
+    c.collectFirst(collector)
   }
 }
