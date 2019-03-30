@@ -1,10 +1,11 @@
 package tapir.docs.openapi
 
-import com.softwaremill.tagging.{@@, Tagger}
+import com.softwaremill.tagging.@@
 import io.circe.generic.auto._
 import io.circe.{Decoder, Encoder}
 import org.scalatest.{FunSuite, Matchers}
-import tapir.Codec.{PlainCodec, _}
+import tapir.support.tagging._
+import tapir.Codec._
 import tapir.Constraint._
 import tapir.Schema.SArray
 import tapir._
@@ -174,9 +175,6 @@ class VerifyYamlTest extends FunSuite with Matchers {
   test("should support constraints for tagged types in input") {
     val expectedYaml = loadYaml("expected_constraints_custom_input.yml")
     implicit val schemaForColor: SchemaFor[Int @@ Color] = SchemaFor(Schema.SInteger(Constraint.Minimum(1)))
-    // TODO consider moving to separate module
-    implicit def taggedPlainCodec[U, T](implicit uc: PlainCodec[U], sf: SchemaFor[U @@ T]): Codec[U @@ T, MediaType.TextPlain, String] =
-      uc.map(_.taggedWith[T])(identity).schema(sf.schema)
 
     val e = endpoint
       .in(query[Int @@ Color]("color"))
@@ -193,7 +191,7 @@ class VerifyYamlTest extends FunSuite with Matchers {
     implicit val schemaForWrapper: SchemaFor[Wrapper] = SchemaFor(Schema.SInteger(Constraint.Minimum(1)))
     implicit val wrapperEncoder: Encoder[Wrapper] = Encoder.encodeInt.contramap(_.un)
     implicit val wrapperDecoder: Decoder[Wrapper] = Decoder.decodeInt.map(c => new Wrapper(c))
-    implicit def taggedPlainCodec(implicit uc: PlainCodec[Int], sf: SchemaFor[Wrapper]): Codec[Wrapper, MediaType.TextPlain, String] =
+    implicit def plainCodecForWrapper(implicit uc: PlainCodec[Int], sf: SchemaFor[Wrapper]): Codec[Wrapper, MediaType.TextPlain, String] =
       uc.map(c => new Wrapper(c))(_.un).schema(sf.schema)
 
     val e = endpoint

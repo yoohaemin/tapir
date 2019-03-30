@@ -102,15 +102,22 @@ lazy val openapiCirceYaml: Project = (project in file("openapi/openapi-circe-yam
   )
   .dependsOn(openapiCirce)
 
+lazy val taggingSupport: Project = (project in file("tagging-support"))
+  .settings(commonSettings: _*)
+  .settings(
+    name := "tapir-tagging-support",
+    libraryDependencies += "com.softwaremill.common" %% "tagging" % "2.2.1"
+  )
+  .dependsOn(core)
+
 // docs
 
 lazy val openapiDocs: Project = (project in file("docs/openapi-docs"))
   .settings(commonSettings: _*)
   .settings(
-    name := "tapir-openapi-docs",
-    libraryDependencies += "com.softwaremill.common" %% "tagging" % "2.2.1"
-)
-  .dependsOn(openapiModel, core, tests % "test", openapiCirceYaml % "test")
+    name := "tapir-openapi-docs"
+  )
+  .dependsOn(openapiModel, core, tests % "test", openapiCirceYaml % "test", taggingSupport % "test")
 
 // server
 
