@@ -5,7 +5,7 @@ import java.nio.ByteBuffer
 
 import com.softwaremill.sttp.{Method => SttpMethod, _}
 import tapir.Codec.PlainCodec
-import tapir.internal.SeqToParams
+import tapir.internal._
 import tapir.typelevel.ParamsAsArgs
 import tapir._
 import tapir.model.{MultiQueryParams, Part, Method}
@@ -20,11 +20,11 @@ class EndpointToSttpClient(clientOptions: SttpClientOptions) {
         .response(ignore)
         .mapResponse(Right(_): Either[Any, Any])
 
-      val (uri, req) = setInputParams(e.input.asVectorOfSingle, params, paramsAsArgs, 0, baseUri, baseReq)
+      val (uri, req) = setInputParams(e.input.asVectorOfSingleInputs, params, paramsAsArgs, 0, baseUri, baseReq)
 
       var req2 = req.copy[Id, Either[Any, Any], Any](method = SttpMethod(e.input.method.getOrElse(Method.GET).m), uri = uri)
 
-      if (e.output.asVectorOfSingle.nonEmpty || e.errorOutput.asVectorOfSingle.nonEmpty) {
+      if (e.output.asVectorOfSingleOutputs.nonEmpty || e.errorOutput.asVectorOfSingleOutputs.nonEmpty) {
         // by default, reading the body as specified by the output, and optionally adjusting to the error output
         // if there's no body in the output, reading the body as specified by the error output
         // otherwise, ignoring
@@ -47,7 +47,7 @@ class EndpointToSttpClient(clientOptions: SttpClientOptions) {
 
         val responseAs = baseResponseAs2.mapWithMetadata {
           (body, meta) =>
-            val outputs = if (meta.isSuccess) e.output.asVectorOfSingle else e.errorOutput.asVectorOfSingle
+            val outputs = if (meta.isSuccess) e.output.asVectorOfSingleOutputs else e.errorOutput.asVectorOfSingleOutputs
 
             // the body type of the success output takes priority; that's why it might not match
             val adjustedBody =
@@ -65,7 +65,7 @@ class EndpointToSttpClient(clientOptions: SttpClientOptions) {
     })
   }
 
-  private def getOutputParams(outputs: Vector[EndpointIO.Single[_]], body: Any, meta: ResponseMetadata): Any = {
+  private def getOutputParams(outputs: Vector[EndpointOutput.Single[_]], body: Any, meta: ResponseMetadata): Any = {
     val values = outputs
       .map {
         case EndpointIO.Body(codec, _) =>
@@ -82,7 +82,16 @@ class EndpointToSttpClient(clientOptions: SttpClientOptions) {
           meta.headers
 
         case EndpointIO.Mapped(wrapped, f, _, _) =>
-          f.asInstanceOf[Any => Any].apply(getOutputParams(wrapped.asVectorOfSingle, body, meta))
+          f.asInstanceOf[Any => Any].apply(getOutputParams(wrapped.asVectorOfSingleOutputs, body, meta))
+
+        case EndpointOutput.StatusCode() =>
+          meta.code
+
+        case EndpointOutput.StatusFrom(wrapped, _, _, _) =>
+          getOutputParams(wrapped.asVectorOfSingleOutputs, body, meta)
+
+        case EndpointOutput.Mapped(wrapped, f, _, _) =>
+          f.asInstanceOf[Any => Any].apply(getOutputParams(wrapped.asVectorOfSingleOutputs, body, meta))
       }
 
     SeqToParams(values)
@@ -102,7 +111,7 @@ class EndpointToSttpClient(clientOptions: SttpClientOptions) {
                             wrappedParamsAsArgs: ParamsAsArgs[II],
                             tail: Vector[EndpointInput.Single[_]]): (Uri, PartialAnyRequest) = {
       val (uri2, req2) = setInputParams(
-        wrapped.asVectorOfSingle,
+        wrapped.asVectorOfSingleInputs,
         g(paramsAsArgs.paramAt(params, paramIndex).asInstanceOf[T]),
         wrappedParamsAsArgs,
         0,
@@ -154,6 +163,9 @@ class EndpointToSttpClient(clientOptions: SttpClientOptions) {
         val headers = paramsAsArgs.paramAt(params, paramIndex).asInstanceOf[Seq[(String, String)]]
         val req2 = headers.foldLeft(req) { case (r, (k, v)) => r.header(k, v) }
         setInputParams(tail, params, paramsAsArgs, paramIndex + 1, uri, req2)
+      case EndpointInput.ExtractFromRequest(_) +: tail =>
+        // ignoring
+        setInputParams(tail, params, paramsAsArgs, paramIndex + 1, uri, req)
       case (a: EndpointInput.Auth[_]) +: tail =>
         setInputParams(a.input +: tail, params, paramsAsArgs, paramIndex, uri, req)
       case EndpointInput.Mapped(wrapped, _, g, wrappedParamsAsArgs) +: tail =>
@@ -197,14 +209,14 @@ class EndpointToSttpClient(clientOptions: SttpClientOptions) {
     case MultipartValueType(_, _) => throw new IllegalArgumentException("Nested multipart bodies aren't supported")
   }
 
-  private def bodyIsStream[I](in: EndpointInput[I]): Boolean = {
-    in match {
-      case _: EndpointIO.StreamBodyWrapper[_, _]  => true
-      case EndpointIO.Multiple(inputs)            => inputs.exists(i => bodyIsStream(i))
-      case EndpointInput.Multiple(inputs)         => inputs.exists(i => bodyIsStream(i))
-      case EndpointIO.Mapped(wrapped, _, _, _)    => bodyIsStream(wrapped)
-      case EndpointInput.Mapped(wrapped, _, _, _) => bodyIsStream(wrapped)
-      case _                                      => false
+  private def bodyIsStream[I](out: EndpointOutput[I]): Boolean = {
+    out match {
+      case _: EndpointIO.StreamBodyWrapper[_, _]   => true
+      case EndpointIO.Multiple(inputs)             => inputs.exists(i => bodyIsStream(i))
+      case EndpointOutput.Multiple(inputs)         => inputs.exists(i => bodyIsStream(i))
+      case EndpointIO.Mapped(wrapped, _, _, _)     => bodyIsStream(wrapped)
+      case EndpointOutput.Mapped(wrapped, _, _, _) => bodyIsStream(wrapped)
+      case _                                       => false
     }
   }
 

@@ -3,11 +3,7 @@
 ## Status codes
 
 By default, successful responses are returned with the `200 OK` status code, and errors with `400 Bad Request`. However,
-this can be customised when interpreting an endpoint as a directive/route, by providing implicit values of 
-`type StatusMapper[T] = T => StatusCode`, where `type StatusCode = Int`.
-
-This can be especially useful for error responses, in which case having an `Endpoint[I, E, O, S]`, you'd need to provide
-an implicit `StatusMapper[E]`.
+this can be customised by specifying how an [output maps to the status code](../endpoint/ios.html#status-codes).
   
 ## Server options
 
@@ -38,9 +34,9 @@ path, query, header, body.
 
 ## Extracting common route logic
 
-Quite often, especially for [authentication](../endpoint/auth.html), some part of the route logic is shared among multiple 
-endpoints. However, these functions don't compose in a straightforward way, as the results can both contain errors
-(represented as `Either`s), and are wrapped in a container. Suppose you have the following methods:
+Quite often, especially for [authentication](../endpoint/auth.html), some part of the route logic is shared among 
+multiple endpoints. However, these functions don't compose in a straightforward way, as authentication usually operates
+on a single input, which is only a part of the whole logic's input. Suppose you have the following methods:
 
 ```scala
 type AuthToken = String
@@ -55,14 +51,62 @@ which you'd like to apply to an endpoint with type:
 val myEndpoint: Endpoint[(AuthToken, String, Int), ErrorInfo, Result, Nothing] = ...
 ```
 
-To avoid composing these functions by hand, tapir defines a helper extension method, `composeRight`. If the first 
-function returns an error, that error is propagated to the final result; otherwise, the result is passed as input to 
-the second function.
+To avoid composing these functions by hand, tapir defines helper extension methods, `andThenFirst` and `andTheFirstE`. 
+The first one should be used when errors are represented as failed wrapper types (e.g. failed futures), the second
+is errors are represented as `Either`s. 
 
 This extension method is defined in the same traits as the route interpreters, both for `Future` (in the akka-http
 interpreter) and for an arbitrary monad (in the http4s interpreter), so importing the package is sufficient to use it:
 
 ```scala
 import tapir.server.akkahttp._
-val r: Route = myEndpoint.toRoute((authFn _).composeRight(logicFn _))
+val r: Route = myEndpoint.toRoute((authFn _).andThenFirstE(logicFn _))
 ```
+
+Writing down the types, here are the generic signatures when using `andThenFirst` and `andThenFirstE`:
+
+```scala
+f1: T => Future[U]
+f2: (U, A1, A2, ...) => Future[O]
+(f1 _).andThenFirst(f2): (T, A1, A2, ...) => Future[O]
+
+f1: T => Future[Either[E, U]]
+f2: (U, A1, A2, ...) => Future[Either[E, O]]
+(f1 _).andThenFirstE(f2): (T, A1, A2, ...) => Future[Either[E, O]]
+```
+
+## Exception handling
+
+There's no exception handling built into tapir. However, tapir contains a more general error handling mechanism, as the
+endpoints can contain dedicated error outputs.
+
+If the logic function, which is passed to the server interpreter, fails (i.e. throws an exception, which results in
+a failed `Future` or `IO`/`Task`), this is propagated to the library (akka-http or http4s). 
+
+However, any exceptions can be recovered from and mapped to an error value. For example:
+
+```scala
+type ErrorInfo = String
+
+def logic(s: String): Future[Int] = ...
+
+def handleErrors[T](f: Future[T]): Future[Either[ErrorInfo, T]] =
+  f.transform {
+    case Success(v) => Success(Right(v))
+    case Failure(e) =>
+      logger.error("Exception when running endpoint logic", e)
+      Success(Left(e.getMessage))
+  }
+
+endpoint
+  .errorOut(plainBody[ErrorInfo])
+  .out(plainBody[Int])
+  .in(query[String]("name"))
+  .toRoute((logic _).andThen(handleErrors))
+```
+
+In the above example, errors are represented as `String`s (aliased to `ErrorInfo` for readability). When the
+logic completes successfully an `Int` is returned. Any exceptions that are raised are logged, and represented as a
+value of type `ErrorInfo`. 
+
+Following the convention, the left side of the `Either[ErrorInfo, T]` represents an error, and the right side success.

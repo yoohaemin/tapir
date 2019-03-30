@@ -1,4 +1,6 @@
 package tapir.docs.openapi
+
+import tapir.internal._
 import tapir.openapi.SecurityScheme
 import tapir.{Endpoint, EndpointIO, EndpointInput}
 
@@ -30,7 +32,7 @@ private[openapi] object SecuritySchemesForEndpoints {
 
   private def authToSecurityScheme(a: EndpointInput.Auth[_]): SecurityScheme = a match {
     case EndpointInput.Auth.ApiKey(input) =>
-      val (name, in) = apiKeyInputNameAndIn(input.asVectorOfBasic())
+      val (name, in) = apiKeyInputNameAndIn(input.asVectorOfBasicInputs())
       SecurityScheme("apiKey", None, Some(name), Some(in), None, None, None, None)
     case EndpointInput.Auth.Http(scheme, _) =>
       SecurityScheme("http", None, None, None, Some(scheme.toLowerCase()), None, None, None)

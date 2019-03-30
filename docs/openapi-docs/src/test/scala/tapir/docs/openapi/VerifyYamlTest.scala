@@ -10,7 +10,7 @@ import tapir.Schema.SArray
 import tapir._
 import tapir.docs.openapi.VerifyYamlTest.Color
 import tapir.json.circe._
-import tapir.model.Method
+import tapir.model.{Method, StatusCodes}
 import tapir.openapi.circe.yaml._
 import tapir.openapi.{Contact, Info, License}
 import tapir.tests._
@@ -134,6 +134,43 @@ class VerifyYamlTest extends FunSuite with Matchers {
     actualYamlNoIndent shouldBe expectedYaml
   }
 
+  test("should support multiple status codes") {
+    // given
+    val expectedYaml = loadYaml("expected_status_codes.yml")
+
+    // work-around for #10: unsupported sealed trait families
+    implicit val schemaForErrorInfo: SchemaFor[ErrorInfo] = new SchemaFor[ErrorInfo] {
+      override def schema: Schema = Schema.SObject(Schema.SObjectInfo("ErrorInfo", "ErrorInfo"), Nil, Nil)
+    }
+
+    val e = endpoint.errorOut(
+      statusFrom(
+        jsonBody[ErrorInfo],
+        StatusCodes.BadRequest,
+        whenClass[ErrorInfo.NotFound] -> StatusCodes.NotFound,
+        whenClass[ErrorInfo.Unauthorized] -> StatusCodes.Unauthorized
+      ).defaultSchema(schemaFor[ErrorInfo.Unknown]))
+
+    // when
+    val actualYaml = List(e).toOpenAPI(Info("Fruits", "1.0")).toYaml
+    val actualYamlNoIndent = noIndentation(actualYaml)
+
+    // then
+    actualYamlNoIndent shouldBe expectedYaml
+  }
+
+  test("should keep the order of multiple endpoints") {
+    val expectedYaml = loadYaml("expected_multiple.yml")
+
+    val actualYaml = List(endpoint.in("p1"), endpoint.in("p3"), endpoint.in("p2"), endpoint.in("p5"), endpoint.in("p4"))
+      .toOpenAPI(Info("Fruits", "1.0"))
+      .toYaml
+    println(actualYaml)
+    val actualYamlNoIndent = noIndentation(actualYaml)
+
+    actualYamlNoIndent shouldBe expectedYaml
+  }
+
   test("should support constraints for tagged types in input") {
     val expectedYaml = loadYaml("expected_constraints_custom_input.yml")
     implicit val schemaForColor: SchemaFor[Int @@ Color] = SchemaFor(Schema.SInteger(Constraint.Minimum(1)))
@@ -252,3 +289,10 @@ object VerifyYamlTest {
 case class F1(data: List[F1])
 case class FruitColor(fruit: String, color: Int @@ Color, weight: Double)
 class Wrapper(val un: Int) extends AnyVal
+
+sealed trait ErrorInfo
+object ErrorInfo {
+  case class NotFound(what: String) extends ErrorInfo
+  case class Unauthorized(realm: String) extends ErrorInfo
+  case class Unknown(code: Int, msg: String) extends ErrorInfo
+}

@@ -4,7 +4,7 @@ import tapir.Codec.PlainCodec
 import tapir.CodecForMany.PlainCodecForMany
 import tapir.CodecForOptional.PlainCodecForOptional
 import tapir.internal.ProductToParams
-import tapir.model.{Method, MultiQueryParams}
+import tapir.model.{Method, MultiQueryParams, ServerRequest}
 import tapir.typelevel.{FnComponents, ParamConcat, ParamsAsArgs}
 
 sealed trait EndpointInput[I] {
@@ -20,41 +20,6 @@ sealed trait EndpointInput[I] {
                                                             paramsAsArgs: ParamsAsArgs[I]): EndpointInput[CASE_CLASS] = {
     map[CASE_CLASS](fc.tupled(c).apply)(ProductToParams(_, fc.arity).asInstanceOf[I])(paramsAsArgs)
   }
-
-  private[tapir] def asVectorOfSingle: Vector[EndpointInput.Single[_]] = this match {
-    case s: EndpointInput.Single[_]   => Vector(s)
-    case m: EndpointInput.Multiple[_] => m.inputs
-    case m: EndpointIO.Multiple[_]    => m.ios
-  }
-
-  private[tapir] def traverse[T](handle: PartialFunction[EndpointInput[_], Vector[T]]): Vector[T] = this match {
-    case i: EndpointInput[_] if handle.isDefinedAt(i) => handle(i)
-    case EndpointInput.Multiple(inputs)               => inputs.flatMap(_.traverse(handle))
-    case EndpointIO.Multiple(inputs)                  => inputs.flatMap(_.traverse(handle))
-    case EndpointInput.Mapped(wrapped, _, _, _)       => wrapped.traverse(handle)
-    case EndpointIO.Mapped(wrapped, _, _, _)          => wrapped.traverse(handle)
-    case a: EndpointInput.Auth[_]                     => a.input.traverse(handle)
-    case _                                            => Vector.empty
-  }
-
-  private[tapir] def asVectorOfBasic(includeAuth: Boolean = true): Vector[EndpointInput.Basic[_]] = traverse {
-    case b: EndpointInput.Basic[_] => Vector(b)
-    case a: EndpointInput.Auth[_]  => if (includeAuth) a.input.asVectorOfBasic(includeAuth) else Vector.empty
-  }
-
-  private[tapir] def auths: Vector[EndpointInput.Auth[_]] = traverse {
-    case a: EndpointInput.Auth[_] => Vector(a)
-  }
-
-  private[tapir] def method: Option[Method] =
-    traverse {
-      case i: EndpointInput.RequestMethod => Vector(i.m)
-    }.headOption
-
-  private[tapir] def bodyType: Option[RawValueType[_]] =
-    traverse[RawValueType[_]] {
-      case b: EndpointIO.Body[_, _, _] => Vector(b.codec.meta.rawValueType)
-    }.headOption
 }
 
 object EndpointInput {
@@ -108,6 +73,10 @@ object EndpointInput {
     def show = s"{cookie $name}"
   }
 
+  case class ExtractFromRequest[T](f: ServerRequest => T) extends Basic[T] {
+    def show = s"{from request}"
+  }
+
   //
 
   trait Auth[T] extends EndpointInput.Single[T] {
@@ -142,7 +111,67 @@ object EndpointInput {
   }
 }
 
-sealed trait EndpointIO[I] extends EndpointInput[I] {
+sealed trait EndpointOutput[I] {
+  def and[J, IJ](other: EndpointOutput[J])(implicit ts: ParamConcat.Aux[I, J, IJ]): EndpointOutput[IJ]
+
+  def show: String
+
+  def map[II](f: I => II)(g: II => I)(implicit paramsAsArgs: ParamsAsArgs[I]): EndpointOutput[II] =
+    EndpointOutput.Mapped(this, f, g, paramsAsArgs)
+
+  def mapTo[COMPANION, CASE_CLASS <: Product](c: COMPANION)(implicit fc: FnComponents[COMPANION, I, CASE_CLASS],
+                                                            paramsAsArgs: ParamsAsArgs[I]): EndpointOutput[CASE_CLASS] = {
+    map[CASE_CLASS](fc.tupled(c).apply)(ProductToParams(_, fc.arity).asInstanceOf[I])(paramsAsArgs)
+  }
+}
+
+object EndpointOutput {
+  sealed trait Single[I] extends EndpointOutput[I] {
+    def and[J, IJ](other: EndpointOutput[J])(implicit ts: ParamConcat.Aux[I, J, IJ]): EndpointOutput[IJ] =
+      other match {
+        case s: Single[_]             => Multiple(Vector(this, s))
+        case Multiple(outputs)        => Multiple(this +: outputs)
+        case EndpointIO.Multiple(ios) => Multiple(this +: ios)
+      }
+  }
+
+  sealed trait Basic[I] extends Single[I]
+
+  //
+
+  case class StatusCode() extends Basic[tapir.StatusCode] {
+    override def show: String = "{status code}"
+  }
+
+  //
+
+  case class StatusFrom[I](output: EndpointOutput[I],
+                           default: tapir.StatusCode,
+                           defaultSchema: Option[Schema],
+                           when: Vector[(When[I], tapir.StatusCode)])
+      extends Single[I] {
+    def defaultSchema(s: Schema): StatusFrom[I] = this.copy(defaultSchema = Some(s))
+    override def show: String = s"status from(${output.show}, $default or ${when.map(_._2).mkString("/")})"
+  }
+
+  case class Mapped[I, T](wrapped: EndpointOutput[I], f: I => T, g: T => I, paramsAsArgs: ParamsAsArgs[I]) extends Single[T] {
+    override def show: String = s"map(${wrapped.show})"
+  }
+
+  //
+
+  case class Multiple[I](outputs: Vector[Single[_]]) extends EndpointOutput[I] {
+    override def and[J, IJ](other: EndpointOutput[J])(implicit ts: ParamConcat.Aux[I, J, IJ]): EndpointOutput.Multiple[IJ] =
+      other match {
+        case s: Single[_]           => Multiple(outputs :+ s)
+        case Multiple(m)            => Multiple(outputs ++ m)
+        case EndpointIO.Multiple(m) => Multiple(outputs ++ m)
+      }
+    def show: String = if (outputs.isEmpty) "-" else outputs.map(_.show).mkString(" ")
+  }
+}
+
+sealed trait EndpointIO[I] extends EndpointInput[I] with EndpointOutput[I] {
   def and[J, IJ](other: EndpointIO[J])(implicit ts: ParamConcat.Aux[I, J, IJ]): EndpointIO[IJ]
 
   def show: String
@@ -153,15 +182,10 @@ sealed trait EndpointIO[I] extends EndpointInput[I] {
                                                                      paramsAsArgs: ParamsAsArgs[I]): EndpointIO[CASE_CLASS] = {
     map[CASE_CLASS](fc.tupled(c).apply)(ProductToParams(_, fc.arity).asInstanceOf[I])(paramsAsArgs)
   }
-
-  private[tapir] override def asVectorOfSingle: Vector[EndpointIO.Single[_]] = this match {
-    case s: EndpointIO.Single[_]   => Vector(s)
-    case m: EndpointIO.Multiple[_] => m.ios
-  }
 }
 
 object EndpointIO {
-  sealed trait Single[I] extends EndpointIO[I] with EndpointInput.Single[I] {
+  sealed trait Single[I] extends EndpointIO[I] with EndpointInput.Single[I] with EndpointOutput.Single[I] {
     def and[J, IJ](other: EndpointIO[J])(implicit ts: ParamConcat.Aux[I, J, IJ]): EndpointIO[IJ] =
       other match {
         case s: Single[_]      => Multiple(Vector(this, s))
@@ -169,7 +193,7 @@ object EndpointIO {
       }
   }
 
-  sealed trait Basic[I] extends Single[I] with EndpointInput.Basic[I]
+  sealed trait Basic[I] extends Single[I] with EndpointInput.Basic[I] with EndpointOutput.Basic[I]
 
   case class Body[T, M <: MediaType, R](codec: CodecForOptional[T, M, R], info: Info[T]) extends Basic[T] {
     def description(d: String): Body[T, M, R] = copy(info = info.description(d))
@@ -193,8 +217,6 @@ object EndpointIO {
     def show = s"{multiple headers}"
   }
 
-  //
-
   case class Mapped[I, T](wrapped: EndpointIO[I], f: I => T, g: T => I, paramsAsArgs: ParamsAsArgs[I]) extends Single[T] {
     override def show: String = s"map(${wrapped.show})"
   }
@@ -207,6 +229,12 @@ object EndpointIO {
         case s: EndpointInput.Single[_] => EndpointInput.Multiple((ios: Vector[EndpointInput.Single[_]]) :+ s)
         case EndpointInput.Multiple(m)  => EndpointInput.Multiple((ios: Vector[EndpointInput.Single[_]]) ++ m)
         case EndpointIO.Multiple(m)     => EndpointInput.Multiple((ios: Vector[EndpointInput.Single[_]]) ++ m)
+      }
+    override def and[J, IJ](other: EndpointOutput[J])(implicit ts: ParamConcat.Aux[I, J, IJ]): EndpointOutput.Multiple[IJ] =
+      other match {
+        case s: EndpointOutput.Single[_] => EndpointOutput.Multiple((ios: Vector[EndpointOutput.Single[_]]) :+ s)
+        case EndpointOutput.Multiple(m)  => EndpointOutput.Multiple((ios: Vector[EndpointOutput.Single[_]]) ++ m)
+        case EndpointIO.Multiple(m)      => EndpointOutput.Multiple((ios: Vector[EndpointOutput.Single[_]]) ++ m)
       }
     override def and[J, IJ](other: EndpointIO[J])(implicit ts: ParamConcat.Aux[I, J, IJ]): Multiple[IJ] =
       other match {

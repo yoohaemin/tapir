@@ -1,5 +1,6 @@
 package tapir.internal.server
-import tapir.internal.SeqToParams
+
+import tapir.internal._
 import tapir.{EndpointIO, EndpointInput}
 
 object InputValues {
@@ -8,7 +9,7 @@ object InputValues {
     * Returns the values of the inputs in the order specified by `input`, and mapped if necessary using defined mapping
     * functions.
     */
-  def apply(input: EndpointInput[_], values: Map[EndpointInput.Basic[_], Any]): List[Any] = apply(input.asVectorOfSingle, values)
+  def apply(input: EndpointInput[_], values: Map[EndpointInput.Basic[_], Any]): List[Any] = apply(input.asVectorOfSingleInputs, values)
 
   private def apply(inputs: Vector[EndpointInput.Single[_]], values: Map[EndpointInput.Basic[_], Any]): List[Any] = {
     inputs match {
@@ -32,7 +33,7 @@ object InputValues {
                                   f: II => T,
                                   inputsTail: Vector[EndpointInput.Single[_]],
                                   values: Map[EndpointInput.Basic[_], Any]): List[Any] = {
-    val wrappedValue = apply(wrapped.asVectorOfSingle, values)
+    val wrappedValue = apply(wrapped.asVectorOfSingleInputs, values)
     f.asInstanceOf[Any => Any].apply(SeqToParams(wrappedValue)) :: apply(inputsTail, values)
   }
 }

@@ -48,6 +48,13 @@ object Schema {
     def apply(constraints: UnsafeConstraint[Constraint, SBinary]*): SBinary = SBinary(constraints.toList)
   }
 
+  case object SDate extends Schema {
+    def show: String = "date"
+  }
+  case object SDateTime extends Schema {
+    def show: String = "date-time"
+  }
+
   case class SRef(fullName: String) extends Schema {
     def show: String = s"ref($fullName)"
   }
