@@ -43,34 +43,38 @@ private[schema] class TSchemaToOSchema(fullNameToKey: Map[String, SchemaKey]) {
   }
 
   private def minItems(c: List[UnsafeConstraint[Constraint, TSchema.SArray]]) = {
-    c.map(_.constraint).collectFirst { case Constraint.MinItems(v) => v }
+    collectConstraint(c) { case Constraint.MinItems(v) => v }
   }
 
   private def maxItems(c: List[UnsafeConstraint[Constraint, TSchema.SArray]]) = {
-    c.map(_.constraint).collectFirst { case Constraint.MaxItems(v) => v }
+    collectConstraint(c) { case Constraint.MaxItems(v) => v }
   }
 
   private def pattern(c: List[UnsafeConstraint[Constraint, TSchema.SString]]) = {
-    c.map(_.constraint).collectFirst { case Constraint.Pattern(v) => v.toString() }
+    collectConstraint(c) { case Constraint.Pattern(v) => v.toString() }
   }
 
   private def maxLength(c: List[UnsafeConstraint[Constraint, TSchema.SString]]) = {
-    c.map(_.constraint).collectFirst { case Constraint.MaxLength(v) => v }
+    collectConstraint(c) { case Constraint.MaxLength(v) => v }
   }
 
   private def minLength(c: List[UnsafeConstraint[Constraint, TSchema.SString]]) = {
-    c.map(_.constraint).collectFirst { case Constraint.MinLength(v) => v }
+    collectConstraint(c) { case Constraint.MinLength(v) => v }
   }
 
   private def enum(c: List[UnsafeConstraint[Constraint, _]]) = {
-    c.map(_.constraint).collectFirst { case Constraint.Enum(v) => v.map(_.toString) }
+    collectConstraint(c) { case Constraint.Enum(v) => v.map(_.toString) }
   }
 
   private def maximum(c: List[UnsafeConstraint[Constraint, _]]) = {
-    c.map(_.constraint).collectFirst { case Constraint.Maximum(v) => v.toString }
+    collectConstraint(c) { case Constraint.Maximum(v) => v.toString }
   }
 
   private def minimum(c: List[UnsafeConstraint[Constraint, _]]) = {
-    c.map(_.constraint).collectFirst { case Constraint.Minimum(v) => v.toString }
+    collectConstraint(c) { case Constraint.Minimum(v) => v.toString }
+  }
+
+  private def collectConstraint[T](c: List[UnsafeConstraint[Constraint, _]])(collector: PartialFunction[Constraint, T]) = {
+    c.map(_.constraint).collectFirst(collector)
   }
 }
