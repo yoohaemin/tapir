@@ -18,8 +18,8 @@ trait Tapir extends TapirDerivedInputs {
     EndpointInput.PathCapture(implicitly[PlainCodec[T]], Some(name), EndpointIO.Info.empty)
   def paths: EndpointInput.PathsCapture = EndpointInput.PathsCapture(EndpointIO.Info.empty)
 
-  def query[T: PlainCodecForMany](name: String)(implicit pcm: PlainCodecForMany[T]): EndpointInput.Query[T] =
-    EndpointInput.Query(name, pcm, EndpointIO.Info.empty)
+  def query[T: PlainCodecForMany](name: String): EndpointInput.Query[T] =
+    EndpointInput.Query(name, implicitly[PlainCodecForMany[T]], EndpointIO.Info.empty)
   def queryParams: EndpointInput.QueryParams = EndpointInput.QueryParams(EndpointIO.Info.empty)
 
   def header[T: PlainCodecForMany](name: String): EndpointIO.Header[T] =
