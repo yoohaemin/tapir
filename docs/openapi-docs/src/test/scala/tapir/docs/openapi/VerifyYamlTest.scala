@@ -269,7 +269,7 @@ class VerifyYamlTest extends FunSuite with Matchers {
     val i = List(e).toOpenAPI(Info("Fruits", "1.0"))
     val actualYaml = i.toYaml
     val actualYamlNoIndent = noIndentation(actualYaml)
-    println(actualYaml)
+
     actualYamlNoIndent shouldBe expectedYaml
   }
 
