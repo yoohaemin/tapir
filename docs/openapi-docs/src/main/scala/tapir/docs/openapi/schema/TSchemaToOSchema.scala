@@ -12,51 +12,31 @@ private[schema] class TSchemaToOSchema(fullNameToKey: Map[String, SchemaKey]) {
   def apply(schema: TSchema): ReferenceOr[OSchema] = {
     schema match {
       case TSchema.SInteger(c) =>
-        Right(
-          OSchema(SchemaType.Integer).copy(
-            minimum = minimum(c),
-            maximum = maximum(c),
-            enum = enum(c)
-          ))
+        Right(OSchema(`type` = SchemaType.Integer, minimum = minimum(c), maximum = maximum(c), enum = enum(c)))
       case TSchema.SNumber(c) =>
-        Right(
-          OSchema(SchemaType.Number).copy(
-            minimum = minimum(c),
-            maximum = maximum(c),
-            enum = enum(c)
-          ))
+        Right(OSchema(`type` = SchemaType.Number, minimum = minimum(c), maximum = maximum(c), enum = enum(c)))
       case TSchema.SBoolean =>
-        Right(OSchema(SchemaType.Boolean))
+        Right(OSchema(`type` = SchemaType.Boolean))
       case TSchema.SString(c) =>
-        Right(
-          OSchema(SchemaType.String).copy(
-            pattern = pattern(c),
-            minLength = minLength(c),
-            maxLength = maxLength(c),
-            enum = enum(c)
-          ))
+        Right(OSchema(`type` = SchemaType.String, pattern = pattern(c), minLength = minLength(c), maxLength = maxLength(c), enum = enum(c)))
       case TSchema.SObject(_, fields, required) =>
-        Right(
-          OSchema(SchemaType.Object).copy(
-            required = required.toList,
-            properties = fields.map {
-              case (fieldName, fieldSchema) =>
-                fieldName -> apply(fieldSchema)
-            }.toListMap
-          ))
+        Right(OSchema(`type` = SchemaType.Object, required = required.toList, properties = fields.map {
+          case (fieldName, fieldSchema) =>
+            fieldName -> apply(fieldSchema)
+        }.toListMap))
       case TSchema.SArray(el, c) =>
         Right(
-          OSchema(SchemaType.Array)
+          OSchema(`type` = SchemaType.Array)
             .copy(
               items = Some(apply(el))
             )
             .copy(maxItems = maxItems(c), minItems = minItems(c)))
       case TSchema.SBinary(_) =>
-        Right(OSchema(SchemaType.String).copy(format = Some(SchemaFormat.Binary)))
+        Right(OSchema(`type` = SchemaType.String, format = Some(SchemaFormat.Binary)))
       case TSchema.SDate =>
-        Right(OSchema(SchemaType.String).copy(format = Some(SchemaFormat.Date)))
+        Right(OSchema(`type` = SchemaType.String, format = Some(SchemaFormat.Date)))
       case TSchema.SDateTime =>
-        Right(OSchema(SchemaType.String).copy(format = Some(SchemaFormat.DateTime)))
+        Right(OSchema(`type` = SchemaType.String, format = Some(SchemaFormat.DateTime)))
       case SRef(fullName) =>
         Left(Reference("#/components/schemas/" + fullNameToKey(fullName)))
     }
