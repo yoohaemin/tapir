@@ -3,7 +3,7 @@ package tapir.docs.openapi.schema
 import tapir.Schema.SRef
 import tapir.openapi.OpenAPI.ReferenceOr
 import tapir.openapi.{Schema => OSchema, _}
-import tapir.{Constraint, SafeConstraint, Schema => TSchema}
+import tapir.{Constraint, UnsafeConstraint, Schema => TSchema}
 
 /**
   * Converts a tapir schema to an OpenAPI schema, using the given map to resolve references.
@@ -12,7 +12,7 @@ private[schema] class TSchemaToOSchema(fullNameToKey: Map[String, SchemaKey]) {
   def apply(schema: TSchema): ReferenceOr[OSchema] = {
     schema match {
       case TSchema.SInteger(c) =>
-        Right(OSchema(SchemaType.Integer).copy(minimum = c.collectFirst { case SafeConstraint(Constraint.Minimum(v: Int), _) => v }))
+        Right(OSchema(SchemaType.Integer).copy(minimum = c.collectFirst { case UnsafeConstraint(Constraint.Minimum(v: Int), _) => v }))
       case s @ TSchema.SNumber(_) =>
         Right(OSchema(SchemaType.Number))
       case TSchema.SBoolean =>
@@ -34,7 +34,7 @@ private[schema] class TSchemaToOSchema(fullNameToKey: Map[String, SchemaKey]) {
             .copy(
               items = Some(apply(el))
             )
-            .copy(maxItems = c.collectFirst { case SafeConstraint(Constraint.MaxItems(v), _) => v }))
+            .copy(maxItems = c.collectFirst { case UnsafeConstraint(Constraint.MaxItems(v), _) => v }))
       case TSchema.SBinary(_) =>
         Right(OSchema(SchemaType.String).copy(format = Some(SchemaFormat.Binary)))
       case SRef(fullName) =>

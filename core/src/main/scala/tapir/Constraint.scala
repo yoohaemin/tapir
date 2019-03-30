@@ -11,8 +11,8 @@ object Constraint {
   case class MaxItems(value: Int) extends Constraint
   case class Enum[T](values: List[T]) extends Constraint
 
-  implicit def asSafeConstraint[C <: Constraint, S <: Schema](c: C)(implicit canConstraint: CanConstraint[S, C]) =
-    SafeConstraint(c, canConstraint)
+  implicit def asUnsafeConstraint[C <: Constraint, S <: Schema](c: C)(implicit canConstraint: CanConstraint[S, C]) =
+    UnsafeConstraint(c, canConstraint)
 }
 
 trait CanConstraint[S <: Schema, +C <: Constraint]
@@ -40,4 +40,4 @@ object CanConstraint {
   implicit object CanEnumString extends CanConstraint[Schema.SString, Constraint.Enum[String]]
 }
 
-case class SafeConstraint[+C <: Constraint, S <: Schema](constraint: C, canConstraint: CanConstraint[S, C])
+case class UnsafeConstraint[+C <: Constraint, S <: Schema](constraint: C, canConstraint: CanConstraint[S, C])

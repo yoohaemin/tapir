@@ -16,8 +16,8 @@ trait SchemaFor[T] { outer =>
 }
 object SchemaFor extends SchemaForMagnoliaDerivation {
 
-  def apply[T](aSchema: Schema): SchemaFor[T] = new SchemaFor[T] {
-    override def schema: Schema = aSchema
+  def apply[T](s: Schema): SchemaFor[T] = new SchemaFor[T] {
+    override def schema: Schema = s
   }
 
   implicit case object SchemaForString extends SchemaFor[String] {
