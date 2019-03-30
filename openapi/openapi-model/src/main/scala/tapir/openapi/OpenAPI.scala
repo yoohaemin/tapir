@@ -189,12 +189,38 @@ case class Schema(title: Option[String],
                   writeOnly: Option[Boolean],
                   example: Option[ExampleValue],
                   deprecated: Option[Boolean],
-                  minimum: Option[Int],
-                  maxItems: Option[Int])
+                  minimum: Option[String],
+                  maximum: Option[String],
+                  maxItems: Option[Int],
+                  minItems: Option[Int],
+                  enum: Option[List[String]],
+                  minLength: Option[Int],
+                  maxLength: Option[Int],
+                  pattern: Option[String])
 
 object Schema {
   def apply(`type`: SchemaType.SchemaType): Schema =
-    Schema(None, List.empty, `type`, None, Map.empty, None, None, None, None, None, None, None, None, None, None)
+    Schema(None,
+           List.empty,
+           `type`,
+           None,
+           Map.empty,
+           None,
+           None,
+           None,
+           None,
+           None,
+           None,
+           None,
+           None,
+           None,
+           None,
+           None,
+           None,
+           None,
+           None,
+           None,
+           None)
 }
 
 object SchemaType extends Enumeration {

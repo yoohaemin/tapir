@@ -12,7 +12,7 @@ paths:
           required: true
           schema:
             type: integer
-            minimum: 1
+            minimum: '1'
       responses:
         '200':
           description: ''

@@ -29,5 +29,5 @@ components:
         data:
           type: array
           items:
-            type: string
+            $ref:'#/components/schemas/F1'
           maxItems: 10

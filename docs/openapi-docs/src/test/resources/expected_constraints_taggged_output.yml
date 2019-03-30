@@ -25,10 +25,13 @@ components:
       required:
         - fruit
         - color
+        - weight
       type: object
       properties:
         fruit:
           type: string
         color:
           type: integer
-          minimum: 1
+          minimum: '1'
+        weight:
+          type: number

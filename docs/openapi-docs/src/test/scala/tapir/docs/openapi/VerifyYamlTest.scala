@@ -5,6 +5,8 @@ import io.circe.generic.auto._
 import io.circe.{Decoder, Encoder}
 import org.scalatest.{FunSuite, Matchers}
 import tapir.Codec.{PlainCodec, _}
+import tapir.Constraint._
+import tapir.Schema.SArray
 import tapir._
 import tapir.docs.openapi.VerifyYamlTest.Color
 import tapir.json.circe._
@@ -12,8 +14,6 @@ import tapir.model.Method
 import tapir.openapi.circe.yaml._
 import tapir.openapi.{Contact, Info, License}
 import tapir.tests._
-import tapir.Constraint._
-import tapir.Schema.SArray
 
 import scala.io.Source
 
@@ -188,7 +188,7 @@ class VerifyYamlTest extends FunSuite with Matchers {
   test("should support constraints in builtin types in output through implicit overriding") {
     val expectedYaml = loadYaml("expected_constraints_known_output.yml")
     implicit def schemaForIterable[T: SchemaFor, C[_] <: Iterable[_]]: SchemaFor[C[T]] =
-      SchemaFor(SArray(implicitly[SchemaFor[String]].schema, Constraint.MaxItems(10)))
+      SchemaFor(SArray(implicitly[SchemaFor[T]].schema, Constraint.MaxItems(10)))
 
     val e = endpoint
       .in(query[String]("color"))
@@ -196,6 +196,7 @@ class VerifyYamlTest extends FunSuite with Matchers {
     val i = List(e).toOpenAPI(Info("Fruits", "1.0"))
     val actualYaml = i.toYaml
     val actualYamlNoIndent = noIndentation(actualYaml)
+
     actualYamlNoIndent shouldBe expectedYaml
   }
 
@@ -206,6 +207,30 @@ class VerifyYamlTest extends FunSuite with Matchers {
     val e = endpoint
       .in(query[Int]("color"))
       .out(stringBody)
+    val i = List(e).toOpenAPI(Info("Fruits", "1.0"))
+    val actualYaml = i.toYaml
+    val actualYamlNoIndent = noIndentation(actualYaml)
+
+    actualYamlNoIndent shouldBe expectedYaml
+  }
+
+  test("should support all type of constraints") {
+    val expectedYaml = loadYaml("expected_all_constraints.yml")
+    implicit def schemaForIterable[T: SchemaFor, C[_] <: Iterable[_]]: SchemaFor[C[T]] =
+      SchemaFor(SArray(implicitly[SchemaFor[T]].schema, Constraint.MinItems(1), Constraint.MaxItems(10)))
+    implicit def schemaForString: SchemaFor[String] =
+      SchemaFor[String](
+        Schema.SString(Constraint.Pattern("\\w".r), Constraint.MinLength(4), Constraint.MaxLength(20), Constraint.Enum("apple", "banana")))
+    implicit val schemaForColor: SchemaFor[Int @@ Color] =
+      SchemaFor(Schema.SInteger(Constraint.Minimum(1), Constraint.Maximum(255), Constraint.Enum(125, 200, 235)))
+    implicit val schemaForDouble: SchemaFor[Double] =
+      SchemaFor(Schema.SNumber(Constraint.Minimum(1.0), Constraint.Maximum(10.0), Constraint.Enum(1.0, 2.0, 3.0)))
+    implicit val colorEncoder: Encoder[Int @@ Color] = Encoder.encodeInt.asInstanceOf[Encoder[Int @@ Color]]
+    implicit val colorDecoder: Decoder[Int @@ Color] = Decoder.decodeInt.asInstanceOf[Decoder[Int @@ Color]]
+
+    val e = endpoint
+      .out(jsonBody[List[FruitColor]])
+
     val i = List(e).toOpenAPI(Info("Fruits", "1.0"))
     val actualYaml = i.toYaml
     val actualYamlNoIndent = noIndentation(actualYaml)
@@ -225,5 +250,5 @@ object VerifyYamlTest {
 }
 
 case class F1(data: List[F1])
-case class FruitColor(fruit: String, color: Int @@ Color)
+case class FruitColor(fruit: String, color: Int @@ Color, weight: Double)
 class Wrapper(val un: Int) extends AnyVal
