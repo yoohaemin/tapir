@@ -331,7 +331,7 @@ trait BaseCodec[F[_], T, M <: MediaType, R] {
       case (SString(constraints), v: String)                        => constraints.forall(_.check(v))
       case (SString(constraints), SetCookieValue(v, _, _, _, _, _)) => constraints.forall(_.check(v))
       case (SString(_), UsernamePassword(_, _))                     => true
-      case (SInteger(constraints), v: StatusCode)                   => constraints.forall(_.check(v))
+      case (SInteger(constraints), v: Int)                          => constraints.forall(_.check(v))
       case (SNumber(constraints), v)                                => constraints.forall(_.check(v))
       case (SArray(_, constraints), v: Iterable[_])                 => constraints.forall(_.check(v))
       case (SBinary, _)                                             => true
