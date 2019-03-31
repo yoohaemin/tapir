@@ -41,11 +41,8 @@ object Schema {
     def apply(element: Schema, constraints: Constraint[Iterable[_]]*): SArray = SArray(element, constraints.toList)
   }
 
-  case class SBinary(constraints: List[Constraint[Iterable[_]]] = List()) extends Schema {
+  case object SBinary extends Schema {
     def show: String = "binary"
-  }
-  object SBinary {
-    def apply(constraints: Constraint[Iterable[_]]*): SBinary = SBinary(constraints.toList)
   }
 
   case object SDate extends Schema {

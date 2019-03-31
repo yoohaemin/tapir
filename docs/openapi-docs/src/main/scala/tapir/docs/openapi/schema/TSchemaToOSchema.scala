@@ -31,7 +31,7 @@ private[schema] class TSchemaToOSchema(fullNameToKey: Map[String, SchemaKey]) {
               items = Some(apply(el))
             )
             .copy(maxItems = maxItems(c), minItems = minItems(c)))
-      case TSchema.SBinary(_) =>
+      case TSchema.SBinary =>
         Right(OSchema(`type` = SchemaType.String, format = Some(SchemaFormat.Binary)))
       case TSchema.SDate =>
         Right(OSchema(`type` = SchemaType.String, format = Some(SchemaFormat.Date)))

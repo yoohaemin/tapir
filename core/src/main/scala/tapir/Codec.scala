@@ -92,7 +92,7 @@ object Codec extends FormCodecDerivation with MultipartCodecDerivation {
   def binaryCodec[T](_rawValueType: RawValueType[T]): Codec[T, MediaType.OctetStream, T] = new Codec[T, MediaType.OctetStream, T] {
     override def encode(b: T): T = b
     override def decode(b: T): DecodeResult[T] = Value(b)
-    override val meta: CodecMeta[MediaType.OctetStream, T] = CodecMeta(Schema.SBinary(), MediaType.OctetStream(), _rawValueType)
+    override val meta: CodecMeta[MediaType.OctetStream, T] = CodecMeta(Schema.SBinary, MediaType.OctetStream(), _rawValueType)
   }
 
   implicit val formSeqCodecUtf8: Codec[Seq[(String, String)], MediaType.XWwwFormUrlencoded, String] = formSeqCodec(StandardCharsets.UTF_8)
@@ -152,7 +152,7 @@ object Codec extends FormCodecDerivation with MultipartCodecDerivation {
         DecodeResult.sequence(anyParts)
       }
       override val meta: CodecMeta[MediaType.MultipartFormData, Seq[RawPart]] =
-        CodecMeta(Schema.SBinary(), MediaType.MultipartFormData(), mvt)
+        CodecMeta(Schema.SBinary, MediaType.MultipartFormData(), mvt)
     }
 }
 
