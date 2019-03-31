@@ -139,5 +139,10 @@ package object tests {
     f
   }
 
-  def readFromFile(f: File): String = Source.fromFile(f).mkString
+  def readFromFile(f: File): String = {
+    val source = Source.fromFile(f)
+    val str = source.mkString
+    source.close()
+    str
+  }
 }
