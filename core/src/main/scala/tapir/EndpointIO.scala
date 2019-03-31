@@ -58,7 +58,7 @@ object EndpointInput {
   case class Query[T](name: String, codec: PlainCodecForMany[T], info: EndpointIO.Info[T]) extends Basic[T] {
     def description(d: String): Query[T] = copy(info = info.description(d))
     def example(t: T): Query[T] = copy(info = info.example(t))
-    def show = s"?$name"
+    def show = s"?$name [${codec.meta.schema.show}]"
   }
 
   case class QueryParams(info: EndpointIO.Info[MultiQueryParams]) extends Basic[MultiQueryParams] {
