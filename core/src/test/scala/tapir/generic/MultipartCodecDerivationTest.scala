@@ -6,7 +6,7 @@ import org.scalatest.{FlatSpec, Matchers}
 import tapir.Schema._
 import tapir.model.Part
 import tapir.util.CompileUtil
-import tapir.{Codec, DecodeResult, MediaType, RawPart}
+import tapir.{Codec, Constraint, DecodeResult, MediaType, RawPart, SchemaFor}
 
 class MultipartCodecDerivationTest extends FlatSpec with Matchers {
   it should "generate a codec for a one-arg case class" in {
@@ -17,6 +17,18 @@ class MultipartCodecDerivationTest extends FlatSpec with Matchers {
     // when
     toPartData(codec.encode(Test1(10))) shouldBe List(("f1", "10"))
     codec.decode(createStringParts(List(("f1", "10")))) shouldBe DecodeResult.Value(Test1(10))
+  }
+
+  it should "generate a codec for a one-arg case class and fail decoding when failed to fulfill constraints" in {
+    // given
+    implicit val schemaForInt: SchemaFor[Int] = SchemaFor(SInteger(Constraint.Minimum(100)))
+    case class Test1(f1: Int)
+    val testSchema = implicitly[SchemaFor[Test1]].schema
+    val codec = implicitly[Codec[Test1, MediaType.MultipartFormData, Seq[RawPart]]]
+
+    // when
+    toPartData(codec.encode(Test1(10))) shouldBe List(("f1", "10"))
+    codec.decodeAndCheck(createStringParts(List(("f1", "10")))) shouldBe DecodeResult.InvalidValue("integerMinimum(100)", "10")
   }
 
   it should "generate a codec for a two-arg case class" in {

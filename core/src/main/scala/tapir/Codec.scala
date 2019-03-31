@@ -6,10 +6,12 @@ import java.nio.charset.{Charset, StandardCharsets}
 import java.nio.file.Path
 import java.util.UUID
 
+import tapir.BaseCodec.Id
 import tapir.DecodeResult._
+import tapir.Schema._
 import tapir.generic.{FormCodecDerivation, MultipartCodecDerivation}
 import tapir.internal.UrlencodedData
-import tapir.model.Part
+import tapir.model.{Part, SetCookieValue, UsernamePassword}
 
 import scala.annotation.implicitNotFound
 
@@ -30,7 +32,7 @@ Is there an implicit schema for: ${T}, and all of its components?
 (codecs are looked up as implicit values of type Codec[${T}, ${M}, _];
 schemas are looked up as implicit values of type SchemaFor[${T}])
 """)
-trait Codec[T, M <: MediaType, R] { outer =>
+trait Codec[T, M <: MediaType, R] extends BaseCodec[Id, T, M, R] { outer =>
   def encode(t: T): R
   def decode(s: R): DecodeResult[T]
   def meta: CodecMeta[M, R]
@@ -140,7 +142,7 @@ object Codec extends FormCodecDerivation with MultipartCodecDerivation {
         val anyParts: List[DecodeResult[AnyPart]] = partNamesToDecode.map { name =>
           val codec = mvt.partCodec(name).get
           val rawParts = rawPartsByName.get(name).toList.flatten
-          codec.asInstanceOf[CodecForMany[_, _, Any]].decode(rawParts.map(_.body)).map { body =>
+          codec.asInstanceOf[CodecForMany[_, _, Any]].decodeAndCheck(rawParts.map(_.body)).map { body =>
             // we know there's at least one part. Using this part to create the value-part
             rawParts.headOption match {
               case Some(rawPart) => rawPart.copy(body = body)
@@ -170,7 +172,7 @@ Is there an implicit schema for: ${T}, and all of its components?
 (codecs are looked up as implicit values of type Codec[${T}, ${M}, _];
 schemas are looked up as implicit values of type SchemaFor[${T}])
 """)
-trait CodecForOptional[T, M <: MediaType, R] { outer =>
+trait CodecForOptional[T, M <: MediaType, R] extends BaseCodec[Option, T, M, R] { outer =>
   def encode(t: T): Option[R]
   def decode(s: Option[R]): DecodeResult[T]
   def meta: CodecMeta[M, R]
@@ -222,7 +224,7 @@ Is there an implicit schema for: ${T}, and all of its components?
 (codecs are looked up as implicit values of type Codec[${T}, ${M}, _];
 schemas are looked up as implicit values of type SchemaFor[${T}])
 """)
-trait CodecForMany[T, M <: MediaType, R] { outer =>
+trait CodecForMany[T, M <: MediaType, R] extends BaseCodec[Seq, T, M, R] { outer =>
   def encode(t: T): Seq[R]
   def decode(s: Seq[R]): DecodeResult[T]
   def meta: CodecMeta[M, R]
@@ -259,6 +261,9 @@ object CodecForMany {
         case l       => DecodeResult.Multiple(l)
       }
       override val meta: CodecMeta[M, R] = tm.meta.copy(isOptional = true)
+      override def checkConstraints(value: Option[T]): Boolean = {
+        value.forall(tm.checkConstraints)
+      }
     }
 
   // collections
@@ -308,4 +313,37 @@ case class MultipartValueType(partCodecs: Map[String, AnyCodecForMany], defaultC
     extends RawValueType[Seq[RawPart]] {
   private[tapir] def partCodec(name: String): Option[AnyCodecForMany] = partCodecs.get(name).orElse(defaultCodec)
   def partCodecMeta(name: String): Option[AnyCodecMeta] = partCodec(name).map(_.meta)
+}
+
+trait BaseCodec[F[_], T, M <: MediaType, R] {
+  def encode(t: T): F[R]
+  def decode(s: F[R]): DecodeResult[T]
+  def meta: CodecMeta[M, R]
+  def decodeAndCheck(s: F[R]): DecodeResult[T] = {
+    decode(s) match {
+      case Value(v) if !checkConstraints(v) => InvalidValue(meta.schema.show, v.toString)
+      case other                            => other
+    }
+  }
+
+  def checkConstraints(value: T): Boolean = {
+    (meta.schema, value) match {
+      case (SString(constraints), v: String)                        => constraints.forall(_.check(v))
+      case (SString(constraints), SetCookieValue(v, _, _, _, _, _)) => constraints.forall(_.check(v))
+      case (SString(_), UsernamePassword(_, _))                     => true
+      case (SInteger(constraints), v: StatusCode)                   => constraints.forall(_.check(v))
+      case (SNumber(constraints), v)                                => constraints.forall(_.check(v))
+      case (SArray(_, constraints), v: Iterable[_])                 => constraints.forall(_.check(v))
+      case (SBinary, _)                                             => true
+      case (SDate, _)                                               => true
+      case (SObject(_, _, _), _)                                    => true
+      case (SDateTime, _)                                           => true
+      case _                                                        => false
+    }
+  }
+
+}
+
+object BaseCodec {
+  type Id[A] = A
 }

@@ -7,7 +7,8 @@ import io.circe.generic.auto._
 import tapir.json.circe._
 import com.softwaremill.macwire._
 import tapir.model._
-
+import com.softwaremill.tagging.@@
+import tapir.support.tagging._
 import scala.io.Source
 
 package object tests {
@@ -129,6 +130,10 @@ package object tests {
 
   val in_string_out_status: Endpoint[String, Unit, StatusCode, Nothing] =
     endpoint.in(query[String]("fruit")).out(statusCode)
+
+  implicit val schemaForColor: SchemaFor[String @@ Tapir] = SchemaFor(Schema.SString(Constraint.Enum("apple", "banana")))
+  val in_query_out_string_constraints: Endpoint[String @@ Tapir, Unit, String, Nothing] =
+    endpoint.in(query[String @@ Tapir]("fruit")).out(stringBody)
 
   val allTestEndpoints: Set[Endpoint[_, _, _, _]] = wireSet[Endpoint[_, _, _, _]]
 

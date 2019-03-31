@@ -56,7 +56,7 @@ lazy val tests: Project = (project in file("tests"))
     ),
     libraryDependencies ++= loggerDependencies
   )
-  .dependsOn(core, circeJson)
+  .dependsOn(core, circeJson, taggingSupport)
 
 // json
 

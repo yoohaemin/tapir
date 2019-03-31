@@ -8,13 +8,13 @@ import cats.effect.{IO, Resource}
 import cats.implicits._
 import com.softwaremill.sttp._
 import com.softwaremill.sttp.asynchttpclient.cats.AsyncHttpClientCatsBackend
+import io.circe.generic.auto._
 import org.scalatest.{Assertion, BeforeAndAfterAll, FunSuite, Matchers}
+import tapir._
+import tapir.json.circe._
 import tapir.model.{MultiQueryParams, Part, SetCookieValue, UsernamePassword}
 import tapir.tests.TestUtil._
 import tapir.tests._
-import tapir._
-import tapir.json.circe._
-import io.circe.generic.auto._
 
 import scala.reflect.ClassTag
 import scala.util.Random
@@ -43,6 +43,12 @@ trait ServerTests[R[_], S, ROUTE] extends FunSuite with Matchers with BeforeAndA
 
   testServer(in_query_out_string)((fruit: String) => pureResult(s"fruit: $fruit".asRight[Unit])) { baseUri =>
     sttp.get(uri"$baseUri?fruit=orange").send().map(_.body shouldBe Right("fruit: orange"))
+  }
+
+  testServer(in_query_out_string_constraints, testNameSuffix = "constraints")((fruit: String) => pureResult(s"fruit: $fruit".asRight[Unit])) {
+    baseUri =>
+      sttp.get(uri"$baseUri?fruit=apple").send().map(_.body shouldBe Right("fruit: apple")) *>
+        sttp.get(uri"$baseUri?fruit=orange").send().map(_.body shouldBe Left("Invalid value for: query parameter fruit"))
   }
 
   testServer(in_query_query_out_string) { case (fruit: String, amount: Option[Int]) => pureResult(s"$fruit $amount".asRight[Unit]) } {

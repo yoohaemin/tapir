@@ -87,7 +87,7 @@ object DecodeInputs {
       case (input @ EndpointInput.PathCapture(codec, _, _)) +: inputsTail =>
         ctx.nextPathSegment match {
           case (Some(s), ctx2) =>
-            codec.decode(s) match {
+            codec.decodeAndCheck(s) match {
               case DecodeResult.Value(v)  => apply(inputsTail, values.value(input, v), ctx2)
               case failure: DecodeFailure => (DecodeInputsResult.Failure(input, failure), ctx)
             }
@@ -106,7 +106,7 @@ object DecodeInputs {
         apply(inputsTail, values.value(input, ps), ctx2)
 
       case (input @ EndpointInput.Query(name, codec, _)) +: inputsTail =>
-        codec.decode(ctx.queryParameter(name).toList) match {
+        codec.decodeAndCheck(ctx.queryParameter(name).toList) match {
           case DecodeResult.Value(v)  => apply(inputsTail, values.value(input, v), ctx)
           case failure: DecodeFailure => (DecodeInputsResult.Failure(input, failure), ctx)
         }
@@ -116,14 +116,14 @@ object DecodeInputs {
 
       case (input @ EndpointInput.Cookie(name, codec, _)) +: inputsTail =>
         val allCookies = DecodeResult.sequence(ctx.headers.filter(_._1 == Cookie.HeaderName).map(p => Cookie.parse(p._2)).toList)
-        val cookieValue = allCookies.map(_.flatten.find(_.name == name)).flatMap(cookie => codec.decode(cookie.map(_.value)))
+        val cookieValue = allCookies.map(_.flatten.find(_.name == name)).flatMap(cookie => codec.decodeAndCheck(cookie.map(_.value)))
         cookieValue match {
           case DecodeResult.Value(v)  => apply(inputsTail, values.value(input, v), ctx)
           case failure: DecodeFailure => (DecodeInputsResult.Failure(input, failure), ctx)
         }
 
       case (input @ EndpointIO.Header(name, codec, _)) +: inputsTail =>
-        codec.decode(ctx.header(name)) match {
+        codec.decodeAndCheck(ctx.header(name)) match {
           case DecodeResult.Value(v)  => apply(inputsTail, values.value(input, v), ctx)
           case failure: DecodeFailure => (DecodeInputsResult.Failure(input, failure), ctx)
         }

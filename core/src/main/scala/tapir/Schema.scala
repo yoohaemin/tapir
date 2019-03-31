@@ -6,21 +6,21 @@ sealed trait Schema {
 
 object Schema {
   case class SString(constraints: List[Constraint[String]] = List()) extends Schema {
-    def show: String = "string"
+    def show: String = "string" + constraints.mkString(",")
   }
   object SString {
     def apply(constraints: Constraint[String]*): SString = SString(constraints.toList)
   }
 
   case class SInteger(constraints: List[Constraint[Int]] = List()) extends Schema {
-    def show: String = "integer"
+    def show: String = "integer" + constraints.mkString(",")
   }
   object SInteger {
     def apply(constraints: Constraint[Int]*): SInteger = SInteger(constraints.toList)
   }
 
   case class SNumber[T: Numeric](constraints: List[Constraint[T]] = List()) extends Schema {
-    def show: String = "number"
+    def show: String = "number" + constraints.mkString(",")
   }
   object SNumber {
     def apply[T: Numeric](constraints: Constraint[T]*): SNumber[T] = SNumber(constraints.toList)
@@ -35,7 +35,7 @@ object Schema {
   }
 
   case class SArray(element: Schema, constraints: List[Constraint[Iterable[_]]] = List()) extends Schema {
-    def show: String = s"array(${element.show})"
+    def show: String = s"array(${element.show})" + constraints.mkString(",")
   }
   object SArray {
     def apply(element: Schema, constraints: Constraint[Iterable[_]]*): SArray = SArray(element, constraints.toList)
