@@ -35,7 +35,7 @@ class Http4sServerTests extends ServerTests[IO, EntityBody[IO], HttpRoutes[IO]] 
   }
 
   override def server(routes: NonEmptyList[HttpRoutes[IO]], port: Port): Resource[IO, Unit] = {
-
+    println(s"Trying with port $port")
     val service: Kleisli[IO, Request[IO], Response[IO]] = routes.reduceK.orNotFound
 
     BlazeServerBuilder[IO]
