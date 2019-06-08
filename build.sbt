@@ -52,11 +52,12 @@ lazy val core: Project = (project in file("core"))
   .settings(
     name := "tapir-core",
     libraryDependencies ++= Seq(
-      "com.softwaremill" %% "magnolia" % "0.11.0-sml",
-      scalaTest % "test"
+      "com.softwaremill" %%% "magnolia" % "0.11.0-sml",
+      "org.scalatest" %%% "scalatest" % "3.0.7" % "test"
     )
   )
   .enablePlugins(spray.boilerplate.BoilerplatePlugin)
+  .enablePlugins(ScalaJSPlugin)
 
 lazy val tests: Project = (project in file("tests"))
   .settings(commonSettings: _*)
@@ -64,7 +65,7 @@ lazy val tests: Project = (project in file("tests"))
     name := "tapir-tests",
     publishArtifact := false,
     libraryDependencies ++= Seq(
-      scalaTest,
+      "org.scalatest" %% "scalatest" % "3.0.7",
       "com.softwaremill.macwire" %% "macros" % "2.3.2" % "provided"
     ),
     libraryDependencies ++= loggerDependencies
@@ -168,6 +169,7 @@ lazy val clientTests: Project = (project in file("client/tests"))
     )
   )
   .dependsOn(tests)
+  .enablePlugins(ScalaJSPlugin)
 
 lazy val sttpClient: Project = (project in file("client/sttp-client"))
   .settings(commonSettings: _*)
@@ -179,6 +181,7 @@ lazy val sttpClient: Project = (project in file("client/sttp-client"))
     )
   )
   .dependsOn(core, clientTests % "test")
+  .enablePlugins(ScalaJSPlugin)
 
 // other
 
