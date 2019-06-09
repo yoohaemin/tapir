@@ -39,9 +39,6 @@ lazy val rootProject = (project in file("."))
              core.js,
              circeJson.jvm,
              circeJson.js,
-             circeJson,
-             circeJson,
-             circeJson,
              openapiModel,
              openapiCirce,
              openapiCirceYaml,
@@ -49,13 +46,17 @@ lazy val rootProject = (project in file("."))
              serverTests,
              akkaHttpServer,
              http4sServer,
-             sttpClient,
-             tests,
+             sttpClient.jvm,
+             sttpClient.js,
+             tests.jvm,
+             tests.js,
              playground)
 
 // core
 
-lazy val core: CrossProject = (crossProject(JSPlatform, JVMPlatform).crossType(CrossType.Pure) in file("core"))
+lazy val core: CrossProject = crossProject(JSPlatform, JVMPlatform)
+  .crossType(CrossType.Pure)
+  .in(file("core"))
   .settings(commonSettings: _*)
   .settings(
     name := "tapir-core",
@@ -83,7 +84,9 @@ lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform)
 
 // json
 
-lazy val circeJson: Project = (crossProject(JSPlatform, JVMPlatform).crossType(CrossType.Pure) in file("json/circe"))
+lazy val circeJson: CrossProject = crossProject(JSPlatform, JVMPlatform)
+  .crossType(CrossType.Pure)
+  .in(file("json/circe"))
   .settings(commonSettings: _*)
   .settings(
     name := "tapir-json-circe",
@@ -132,7 +135,7 @@ lazy val openapiDocs: Project = (project in file("docs/openapi-docs"))
   .settings(
     name := "tapir-openapi-docs"
   )
-  .dependsOn(openapiModel, core, tests % "test", openapiCirceYaml % "test")
+  .dependsOn(openapiModel, core.jvm, tests.jvm % "test", openapiCirceYaml % "test")
 
 // server
 
@@ -166,8 +169,9 @@ lazy val http4sServer: Project = (project in file("server/http4s-server"))
 
 // client
 
-lazy val clientTests: Project = //(project in file("client/tests"))
-(crossProject(JSPlatform, JVMPlatform).crossType(CrossType.Pure) in file("client/tests"))
+lazy val clientTests: CrossProject = crossProject(JSPlatform, JVMPlatform)
+  .crossType(CrossType.Pure)
+  .in(file("client/tests"))
   .settings(commonSettings: _*)
   .settings(
     name := "tapir-client-tests",
@@ -180,7 +184,9 @@ lazy val clientTests: Project = //(project in file("client/tests"))
   )
   .dependsOn(tests)
 
-lazy val sttpClient: Project = (crossProject(JSPlatform, JVMPlatform).crossType(CrossType.Pure) in file("client/sttp-client"))
+lazy val sttpClient: CrossProject = crossProject(JSPlatform, JVMPlatform)
+  .crossType(CrossType.Pure)
+  .in(file("client/sttp-client"))
   .settings(commonSettings: _*)
   .settings(
     name := "tapir-sttp-client",
@@ -209,4 +215,4 @@ lazy val playground: Project = (project in file("playground"))
     libraryDependencies ++= loggerDependencies,
     publishArtifact := false
   )
-  .dependsOn(akkaHttpServer, http4sServer, sttpClient, openapiCirceYaml, openapiDocs, circeJson)
+  .dependsOn(akkaHttpServer, http4sServer, sttpClient.jvm, openapiCirceYaml, openapiDocs, circeJson.jvm)
