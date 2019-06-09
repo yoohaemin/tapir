@@ -1,3 +1,6 @@
+import sbtcrossproject.CrossPlugin.autoImport.{crossProject, CrossType}
+import sbtcrossproject.CrossProject
+
 val scala2_11 = "2.11.12"
 val scala2_12 = "2.12.8"
 lazy val commonSettings = commonSmlBuildSettings ++ ossPublishSettings ++ Seq(
@@ -32,7 +35,12 @@ lazy val loggerDependencies = Seq(
 lazy val rootProject = (project in file("."))
   .settings(commonSettings: _*)
   .settings(publishArtifact := false, name := "tapir")
-  .aggregate(core,
+  .aggregate(core.jvm,
+             core.js,
+             circeJson.jvm,
+             circeJson.js,
+             circeJson,
+             circeJson,
              circeJson,
              openapiModel,
              openapiCirce,
@@ -47,7 +55,7 @@ lazy val rootProject = (project in file("."))
 
 // core
 
-lazy val core: Project = (project in file("core"))
+lazy val core: CrossProject = (crossProject(JSPlatform, JVMPlatform).crossType(CrossType.Pure) in file("core"))
   .settings(commonSettings: _*)
   .settings(
     name := "tapir-core",
@@ -57,16 +65,17 @@ lazy val core: Project = (project in file("core"))
     )
   )
   .enablePlugins(spray.boilerplate.BoilerplatePlugin)
-  .enablePlugins(ScalaJSPlugin)
 
-lazy val tests: Project = (project in file("tests"))
+lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform)
+  .crossType(CrossType.Pure)
+  .in(file("tests"))
   .settings(commonSettings: _*)
   .settings(
     name := "tapir-tests",
     publishArtifact := false,
     libraryDependencies ++= Seq(
-      "org.scalatest" %% "scalatest" % "3.0.7",
-      "com.softwaremill.macwire" %% "macros" % "2.3.2" % "provided"
+      "org.scalatest" %%% "scalatest" % "3.0.7",
+      "com.softwaremill.macwire" %%% "macros" % "2.3.2" % "provided"
     ),
     libraryDependencies ++= loggerDependencies
   )
@@ -74,14 +83,14 @@ lazy val tests: Project = (project in file("tests"))
 
 // json
 
-lazy val circeJson: Project = (project in file("json/circe"))
+lazy val circeJson: Project = (crossProject(JSPlatform, JVMPlatform).crossType(CrossType.Pure) in file("json/circe"))
   .settings(commonSettings: _*)
   .settings(
     name := "tapir-json-circe",
     libraryDependencies ++= Seq(
-      "io.circe" %% "circe-core" % circeVersion,
-      "io.circe" %% "circe-generic" % circeVersion,
-      "io.circe" %% "circe-parser" % circeVersion,
+      "io.circe" %%% "circe-core" % circeVersion,
+      "io.circe" %%% "circe-generic" % circeVersion,
+      "io.circe" %%% "circe-parser" % circeVersion,
     )
   )
   .dependsOn(core)
@@ -134,7 +143,7 @@ lazy val serverTests: Project = (project in file("server/tests"))
     publishArtifact := false,
     libraryDependencies ++= Seq("com.softwaremill.sttp" %% "async-http-client-backend-cats" % sttpVersion)
   )
-  .dependsOn(tests)
+  .dependsOn(tests.jvm)
 
 lazy val akkaHttpServer: Project = (project in file("server/akka-http-server"))
   .settings(commonSettings: _*)
@@ -145,7 +154,7 @@ lazy val akkaHttpServer: Project = (project in file("server/akka-http-server"))
       "com.typesafe.akka" %% "akka-stream" % "2.5.23"
     )
   )
-  .dependsOn(core, serverTests % "test")
+  .dependsOn(core.jvm, serverTests % "test")
 
 lazy val http4sServer: Project = (project in file("server/http4s-server"))
   .settings(commonSettings: _*)
@@ -153,11 +162,12 @@ lazy val http4sServer: Project = (project in file("server/http4s-server"))
     name := "tapir-http4s-server",
     libraryDependencies ++= Seq("org.http4s" %% "http4s-blaze-server" % http4sVersion)
   )
-  .dependsOn(core, serverTests % "test")
+  .dependsOn(core.jvm, serverTests % "test")
 
 // client
 
-lazy val clientTests: Project = (project in file("client/tests"))
+lazy val clientTests: Project = //(project in file("client/tests"))
+(crossProject(JSPlatform, JVMPlatform).crossType(CrossType.Pure) in file("client/tests"))
   .settings(commonSettings: _*)
   .settings(
     name := "tapir-client-tests",
@@ -169,9 +179,8 @@ lazy val clientTests: Project = (project in file("client/tests"))
     )
   )
   .dependsOn(tests)
-  .enablePlugins(ScalaJSPlugin)
 
-lazy val sttpClient: Project = (project in file("client/sttp-client"))
+lazy val sttpClient: Project = (crossProject(JSPlatform, JVMPlatform).crossType(CrossType.Pure) in file("client/sttp-client"))
   .settings(commonSettings: _*)
   .settings(
     name := "tapir-sttp-client",
@@ -181,7 +190,6 @@ lazy val sttpClient: Project = (project in file("client/sttp-client"))
     )
   )
   .dependsOn(core, clientTests % "test")
-  .enablePlugins(ScalaJSPlugin)
 
 // other
 
